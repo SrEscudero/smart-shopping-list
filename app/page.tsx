@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from 'react';
-import { useShoppingStore } from '../store/useShoppingStore';
+import { useShoppingStore, Product } from '../store/useShoppingStore';
 import ThemeProvider from './components/ThemeProvider';
 import Dashboard from './components/Dashboard';
 import AddProductForm from './components/AddProductForm';
@@ -17,6 +17,7 @@ export default function Home() {
   const {
     month, items, toggleProduct, removeProduct, updateProduct,
     clearPurchased, theme, shoppingMode, toggleShoppingMode,
+    addMultipleProducts // <- NUEVA FUNCION AGREGADA
   } = useShoppingStore();
 
   const [filter, setFilter] = useState<'all' | 'pending' | 'purchased'>('all');
@@ -43,6 +44,7 @@ export default function Home() {
   const pendingCount = items.filter(i => !i.isPurchased).length;
   const purchased = items.filter(i => i.isPurchased).length;
 
+  // --- EXPORTAR A WHATSAPP ---
   const exportToWhatsApp = () => {
     const pend = items.filter(i => !i.isPurchased);
     if (!pend.length) { alert('No hay productos pendientes.'); return; }
@@ -58,6 +60,79 @@ export default function Home() {
     }
     msg += `💰 *Total: R$ ${pend.reduce((a, i) => a + i.estimatedPrice * i.quantity, 0).toFixed(2)}*`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+  };
+
+  // --- EXPORTAR A CSV ---
+  const exportToCSV = () => {
+    const headers = ['Nombre', 'Categoria', 'Precio Estimado', 'Cantidad', 'Tienda', 'Nota'];
+    const rows = items.map(i => [
+      `"${i.name}"`, 
+      `"${i.category}"`, 
+      i.estimatedPrice, 
+      i.quantity, 
+      `"${i.store}"`, 
+      `"${i.note || ''}"`
+    ].join(','));
+    
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `lista_compras_${month.replace(/ /g, '_')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // --- IMPORTAR DESDE CSV Y ORDENAR ---
+  const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      const lines = text.split('\n').filter(line => line.trim() !== '');
+      if (lines.length <= 1) {
+        alert("El archivo está vacío o solo contiene cabeceras.");
+        return; 
+      }
+
+      const importedProducts: Omit<Product, 'id' | 'isPurchased' | 'addedAt'>[] = [];
+
+      // Procesar desde la línea 1 (ignorando la cabecera en la línea 0)
+      for (let i = 1; i < lines.length; i++) {
+        // Separa por comas respetando el formato, limpiando comillas extra
+        const [name, category, price, qty, store, note] = lines[i].split(',').map(s => s?.replace(/^"|"$/g, '').trim() || '');
+
+        if (!name) continue; // Si no hay nombre válido, ignoramos la línea
+
+        importedProducts.push({
+          name,
+          category: category || 'Otros',
+          estimatedPrice: parseFloat(price) || 0,
+          quantity: parseInt(qty) || 1,
+          store: store || '',
+          note: note || '',
+        });
+      }
+
+      // ORDENAR AUTOMÁTICAMENTE: Primero por categoría y luego alfabéticamente por nombre
+      importedProducts.sort((a, b) => {
+        if (a.category === b.category) {
+          return a.name.localeCompare(b.name);
+        }
+        return a.category.localeCompare(b.category);
+      });
+
+      // Guardar en el store global
+      addMultipleProducts(importedProducts);
+      alert(`${importedProducts.length} productos importados y ordenados con éxito.`);
+    };
+    
+    reader.readAsText(file);
+    e.target.value = ''; // Resetear el input
   };
 
   const tabs = [
@@ -329,6 +404,28 @@ export default function Home() {
                   Compartir en WhatsApp
                 </button>
               )}
+
+              {/* Botones de Importar y Exportar CSV */}
+              <div className="flex gap-2">
+                <button onClick={exportToCSV}
+                  className="flex-1 flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl text-sm font-semibold transition-all"
+                  style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+                  <span>📥 Exportar CSV</span>
+                </button>
+                
+                <label 
+                  className="flex-1 flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl text-sm font-semibold transition-all cursor-pointer"
+                  style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+                  <span>📤 Importar CSV</span>
+                  <input
+                    type="file"
+                    accept=".csv"
+                    className="hidden"
+                    onChange={handleImportCSV}
+                  />
+                </label>
+              </div>
+
             </div>
           )}
 

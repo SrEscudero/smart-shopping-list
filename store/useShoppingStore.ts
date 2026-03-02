@@ -46,6 +46,8 @@ export interface ShoppingStore {
 
   setBudget: (amount: number) => void;
   addProduct: (product: Omit<Product, 'id' | 'isPurchased' | 'addedAt'>) => void;
+  // NUEVO: Función para agregar múltiples productos a la vez (ideal para importaciones CSV)
+  addMultipleProducts: (products: Omit<Product, 'id' | 'isPurchased' | 'addedAt'>[]) => void;
   toggleProduct: (id: string, finalPrice?: number) => void;
   removeProduct: (id: string) => void;
   updateProduct: (id: string, updatedProduct: Partial<Product>) => void;
@@ -90,6 +92,17 @@ export const useShoppingStore = create<ShoppingStore>()(
       addProduct: (product) => set((s) => ({
         items: [...s.items, { ...product, id: uuidv4(), isPurchased: false, addedAt: Date.now() }]
       })),
+
+      // NUEVA IMPLEMENTACIÓN: Agrega un array de productos generando IDs y fechas
+      addMultipleProducts: (products) => set((s) => {
+        const newItems = products.map(product => ({
+          ...product,
+          id: uuidv4(),
+          isPurchased: false,
+          addedAt: Date.now()
+        }));
+        return { items: [...s.items, ...newItems] };
+      }),
 
       toggleProduct: (id, finalPrice) => set((s) => ({
         items: s.items.map(item =>
