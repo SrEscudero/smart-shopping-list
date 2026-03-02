@@ -1,347 +1,303 @@
 // app/components/ProductCard.tsx
 "use client";
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Product } from '../../store/useShoppingStore';
 
-const CATEGORY_COLORS: Record<string, string> = {
-  'Frutas y Verduras': '#34C759', 'Carnes y Pescados': '#FF3B30',
-  'Lácteos y Huevos': '#FFCC00', 'Panadería': '#FF9500',
-  'Bebidas': '#5AC8FA', 'Limpieza': '#32ADE6',
-  'Cuidado Personal': '#AF52DE', 'Despensa': '#A2845E',
-  'Congelados': '#00C7BE', 'Mascotas': '#FF6B9D',
-  'Bebés': '#FF2D55', 'Electrónica': '#007AFF',
-  'Ropa': '#BF5AF2', 'Otros': '#8E8E93',
-};
-
-const CATEGORY_ICONS: Record<string, string> = {
-  'Frutas y Verduras': '🥦', 'Carnes y Pescados': '🥩',
-  'Lácteos y Huevos': '🥛', 'Panadería': '🍞',
-  'Bebidas': '🧃', 'Limpieza': '🧹',
-  'Cuidado Personal': '🧴', 'Despensa': '🥫',
-  'Congelados': '🧊', 'Mascotas': '🐾',
-  'Bebés': '👶', 'Electrónica': '📱',
-  'Ropa': '👕', 'Otros': '📦',
+export const CATEGORY_CONFIG: Record<string, { color: string; icon: string; bg: string }> = {
+    'Frutas y Verduras': { color: '#30D158', icon: '🥦', bg: 'rgba(48,209,88,0.12)' },
+    'Carnes y Pescados': { color: '#FF453A', icon: '🥩', bg: 'rgba(255,69,58,0.12)' },
+    'Lácteos y Huevos': { color: '#FFD60A', icon: '🥛', bg: 'rgba(255,214,10,0.12)' },
+    'Panadería': { color: '#FF9F0A', icon: '🍞', bg: 'rgba(255,159,10,0.12)' },
+    'Bebidas': { color: '#5AC8FA', icon: '🧃', bg: 'rgba(90,200,250,0.12)' },
+    'Limpieza': { color: '#32ADE6', icon: '🧹', bg: 'rgba(50,173,230,0.12)' },
+    'Cuidado Personal': { color: '#BF5AF2', icon: '🧴', bg: 'rgba(191,90,242,0.12)' },
+    'Despensa': { color: '#A2845E', icon: '🥫', bg: 'rgba(162,132,94,0.12)' },
+    'Congelados': { color: '#00C7BE', icon: '🧊', bg: 'rgba(0,199,190,0.12)' },
+    'Mascotas': { color: '#FF6B9D', icon: '🐾', bg: 'rgba(255,107,157,0.12)' },
+    'Bebes': { color: '#FF2D55', icon: '👶', bg: 'rgba(255,45,85,0.12)' },
+    'Electronica': { color: '#0A84FF', icon: '📱', bg: 'rgba(10,132,255,0.12)' },
+    'Ropa': { color: '#BF5AF2', icon: '👕', bg: 'rgba(191,90,242,0.12)' },
+    'Otros': { color: '#8E8E93', icon: '📦', bg: 'rgba(142,142,147,0.12)' },
 };
 
 const ALL_CATEGORIES = [
-  'Frutas y Verduras', 'Carnes y Pescados', 'Lácteos y Huevos',
-  'Panadería', 'Bebidas', 'Limpieza', 'Cuidado Personal',
-  'Despensa', 'Congelados', 'Mascotas', 'Bebés',
-  'Electrónica', 'Ropa', 'Otros',
+    'Frutas y Verduras', 'Carnes y Pescados', 'Lácteos y Huevos', 'Panadería',
+    'Bebidas', 'Limpieza', 'Cuidado Personal', 'Despensa', 'Congelados',
+    'Mascotas', 'Bebes', 'Electronica', 'Ropa', 'Otros',
 ];
 
-interface ProductCardProps {
-  item: Product;
-  onToggle: () => void;
-  onRemove: () => void;
-  onUpdate: (data: Partial<Product>) => void;
-  isDark: boolean;
+function triggerConfetti(x: number, y: number) {
+    const colors = ['#FF453A', '#30D158', '#FFD60A', '#0A84FF', '#BF5AF2', '#FF9F0A'];
+    for (let i = 0; i < 12; i++) {
+        const el = document.createElement('div');
+        el.className = 'confetti-piece';
+        const angle = (i / 12) * 360;
+        const distance = 50 + Math.random() * 60;
+        const tx = Math.cos((angle * Math.PI) / 180) * distance;
+        const ty = Math.sin((angle * Math.PI) / 180) * distance - 30;
+        el.style.cssText = `left:${x}px;top:${y}px;background:${colors[i % colors.length]};--tx:${tx}px;--ty:${ty}px;--rot:${Math.random() * 360}deg;border-radius:${Math.random() > 0.5 ? '50%' : '2px'};`;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 1000);
+    }
 }
 
-export default function ProductCard({ item, onToggle, onRemove, onUpdate, isDark }: ProductCardProps) {
-  const [showEditModal, setShowEditModal] = useState(false);
+interface Props {
+    item: Product;
+    onToggle: () => void;
+    onRemove: () => void;
+    onUpdate: (data: Partial<Product>) => void;
+    isDark: boolean;
+    shoppingMode?: boolean;
+    isLast?: boolean;
+}
 
-  // Estado del modal de edición — copia local hasta guardar
-  const [editName, setEditName] = useState(item.name);
-  const [editPrice, setEditPrice] = useState(item.estimatedPrice.toString());
-  const [editQty, setEditQty] = useState(item.quantity.toString());
-  const [editStore, setEditStore] = useState(item.store || '');
-  const [editCategory, setEditCategory] = useState(item.category);
-  const [editNote, setEditNote] = useState(item.note || '');
-  const [editPriority, setEditPriority] = useState(item.priority || 'media');
+export default function ProductCard({ item, onToggle, onRemove, onUpdate, isDark, shoppingMode = false, isLast = false }: Props) {
+    const [showEdit, setShowEdit] = useState(false);
+    const [justToggled, setJustToggled] = useState(false);
+    const [editName, setEditName] = useState(item.name);
+    const [editPrice, setEditPrice] = useState(item.estimatedPrice.toString());
+    const [editQty, setEditQty] = useState(item.quantity.toString());
+    const [editStore, setEditStore] = useState(item.store || '');
+    const [editCategory, setEditCategory] = useState(item.category);
+    const [editNote, setEditNote] = useState(item.note || '');
+    const [editPriority, setEditPriority] = useState<'alta' | 'media' | 'baja'>(item.priority || 'media');
 
-  const color = CATEGORY_COLORS[item.category] || '#8E8E93';
-  const icon = CATEGORY_ICONS[item.category] || '📦';
-  const total = item.estimatedPrice * item.quantity;
+    const cfg = CATEGORY_CONFIG[item.category] || CATEGORY_CONFIG['Otros'];
+    const editCfg = CATEGORY_CONFIG[editCategory] || CATEGORY_CONFIG['Otros'];
+    const total = item.estimatedPrice * item.quantity;
+    const liveTotal = ((parseFloat(editPrice) || 0) * (parseInt(editQty) || 1)).toFixed(2);
 
-  const text = isDark ? 'text-white' : 'text-gray-900';
-  const subtext = isDark ? 'text-gray-500' : 'text-gray-400';
-  const inputCls = `w-full text-sm px-3 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all ${
-    isDark ? 'bg-white/5 text-white placeholder:text-gray-600' : 'bg-gray-100 text-gray-900 placeholder:text-gray-400'
-  }`;
-  const labelCls = `text-xs font-semibold uppercase tracking-wide ${isDark ? 'text-gray-500' : 'text-gray-400'}`;
+    const handleToggle = useCallback((e: React.MouseEvent) => {
+        if (!item.isPurchased) {
+            triggerConfetti(e.clientX, e.clientY);
+            setJustToggled(true);
+            setTimeout(() => setJustToggled(false), 600);
+        }
+        onToggle();
+    }, [item.isPurchased, onToggle]);
 
-  const openEdit = () => {
-    // Sincronizar estado con valores actuales antes de abrir
-    setEditName(item.name);
-    setEditPrice(item.estimatedPrice.toString());
-    setEditQty(item.quantity.toString());
-    setEditStore(item.store || '');
-    setEditCategory(item.category);
-    setEditNote(item.note || '');
-    setEditPriority(item.priority || 'media');
-    setShowEditModal(true);
-  };
+    const openEdit = () => {
+        setEditName(item.name); setEditPrice(item.estimatedPrice.toString());
+        setEditQty(item.quantity.toString()); setEditStore(item.store || '');
+        setEditCategory(item.category); setEditNote(item.note || '');
+        setEditPriority(item.priority || 'media'); setShowEdit(true);
+    };
 
-  const handleSave = () => {
-    onUpdate({
-      name: editName.trim() || item.name,
-      estimatedPrice: parseFloat(editPrice) || item.estimatedPrice,
-      quantity: parseInt(editQty) || 1,
-      store: editStore.trim() || 'Varias',
-      category: editCategory,
-      note: editNote.trim() || undefined,
-      priority: editPriority as 'alta' | 'media' | 'baja',
-    });
-    setShowEditModal(false);
-  };
+    const handleSave = () => {
+        onUpdate({
+            name: editName.trim() || item.name, estimatedPrice: parseFloat(editPrice) || item.estimatedPrice,
+            quantity: parseInt(editQty) || 1, store: editStore.trim() || 'Varias',
+            category: editCategory, note: editNote.trim() || undefined, priority: editPriority
+        });
+        setShowEdit(false);
+    };
 
-  const priorityConfig = {
-    alta:  { label: '🔴 Alta',  bg: isDark ? 'bg-red-500/10'    : 'bg-red-50',    text: 'text-red-400'    },
-    media: { label: '🟡 Media', bg: isDark ? 'bg-yellow-500/10' : 'bg-yellow-50', text: 'text-yellow-500' },
-    baja:  { label: '🟢 Baja',  bg: isDark ? 'bg-green-500/10'  : 'bg-green-50',  text: 'text-green-400'  },
-  };
-  const pri = priorityConfig[item.priority || 'media'];
+    const inputCls = `w-full text-sm px-3 py-3 rounded-xl focus:outline-none transition-all ${isDark ? 'bg-white/5 text-white placeholder:text-gray-600' : 'bg-black/5 text-gray-900 placeholder:text-gray-400'}`;
+    const lbl = `text-[10px] font-bold uppercase tracking-widest opacity-40`;
 
-  return (
-    <>
-      {/* ── CARD ── */}
-      <div className={`relative px-4 py-3.5 flex items-center gap-3 transition-colors ${isDark ? 'hover:bg-white/[0.02]' : 'hover:bg-gray-50'}`}>
-
-        {/* Color accent bar */}
-        <div className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full" style={{ backgroundColor: color }} />
-
-        {/* Checkbox */}
-        <button
-          onClick={onToggle}
-          className={`w-7 h-7 flex-shrink-0 rounded-full border-2 flex items-center justify-center transition-all ${
-            item.isPurchased ? 'border-blue-500 bg-blue-500' : isDark ? 'border-gray-600' : 'border-gray-300'
-          }`}
-        >
-          {item.isPurchased && (
-            <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          )}
-        </button>
-
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <span className={`font-semibold text-sm leading-snug ${item.isPurchased ? 'line-through opacity-40' : text}`}>
-            {item.name}
-          </span>
-          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-            <span className="text-xs font-medium" style={{ color }}>{icon} {item.category}</span>
-            {item.store && item.store !== 'Varias' && (
-              <span className={`text-xs ${subtext}`}>· {item.store}</span>
-            )}
-            {item.note && (
-              <span className={`text-xs ${subtext} italic`}>· {item.note}</span>
-            )}
-          </div>
-        </div>
-
-        {/* Price */}
-        <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-          <span className={`text-sm font-bold ${item.isPurchased ? 'opacity-40' : text}`}>
-            R$ {total.toFixed(2)}
-          </span>
-          <span className={`text-xs ${subtext}`}>×{item.quantity} · R${item.estimatedPrice.toFixed(2)}</span>
-        </div>
-
-        {/* Edit button */}
-        <button
-          onClick={openEdit}
-          className={`flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
-            isDark ? 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-800'
-          }`}
-          title="Editar producto"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-          </svg>
-        </button>
-      </div>
-
-      {/* ── EDIT MODAL ── */}
-      {showEditModal && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-            onClick={() => setShowEditModal(false)}
-          />
-
-          {/* Sheet */}
-          <div className={`relative z-10 w-full max-w-lg mx-auto ${isDark ? 'bg-[#0D0D14]' : 'bg-white'} rounded-t-3xl overflow-hidden`}
-            style={{ maxHeight: '90vh' }}
-          >
-            {/* Handle */}
-            <div className="flex justify-center pt-3 pb-1">
-              <div className={`w-10 h-1 rounded-full ${isDark ? 'bg-white/20' : 'bg-gray-200'}`} />
-            </div>
-
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3">
-              <div>
-                <h2 className={`text-base font-bold ${text}`}>Editar producto</h2>
-                <p className={`text-xs ${subtext}`}>Modifica los datos y guarda</p>
-              </div>
-              <button
-                onClick={() => setShowEditModal(false)}
-                className={`p-2 rounded-xl ${isDark ? 'bg-white/5 text-gray-400' : 'bg-gray-100 text-gray-500'}`}
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Form */}
-            <div className="px-5 pb-8 overflow-y-auto space-y-4" style={{ maxHeight: 'calc(90vh - 100px)' }}>
-
-              {/* Nombre */}
-              <div className="space-y-1.5">
-                <label className={labelCls}>Nombre</label>
-                <input
-                  type="text"
-                  className={inputCls}
-                  value={editName}
-                  onChange={e => setEditName(e.target.value)}
-                  placeholder="Nombre del producto"
-                  autoFocus
-                />
-              </div>
-
-              {/* Precio + Cantidad */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className={labelCls}>Precio unitario</label>
-                  <div className="relative">
-                    <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-xs font-medium ${subtext}`}>R$</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      className={`w-full text-sm pl-8 pr-3 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${
-                        isDark ? 'bg-white/5 text-white' : 'bg-gray-100 text-gray-900'
-                      }`}
-                      value={editPrice}
-                      onChange={e => setEditPrice(e.target.value)}
-                    />
-                  </div>
+    if (shoppingMode) {
+        return (
+            <button onClick={handleToggle}
+                className="w-full text-left flex items-center gap-4 px-4 py-5 transition-all duration-300 relative overflow-hidden"
+                style={{
+                    borderBottom: isLast ? 'none' : '1px solid var(--border)',
+                    background: justToggled ? 'rgba(var(--accent-rgb), 0.08)' : 'transparent',
+                    opacity: item.isPurchased ? 0.4 : 1
+                }}>
+                <div className="w-10 h-10 rounded-2xl border-2 flex items-center justify-center flex-shrink-0 transition-all duration-300"
+                    style={{
+                        background: item.isPurchased ? 'var(--accent)' : 'transparent',
+                        borderColor: item.isPurchased ? 'var(--accent)' : 'rgba(255,255,255,0.2)',
+                        boxShadow: item.isPurchased ? '0 0 12px var(--accent-glow)' : 'none'
+                    }}>
+                    {item.isPurchased && (
+                        <svg className="w-5 h-5 text-white animate-bounce-check" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                    )}
                 </div>
-                <div className="space-y-1.5">
-                  <label className={labelCls}>Cantidad</label>
-                  <input
-                    type="number"
-                    min="1"
-                    className={`${inputCls} text-center`}
-                    value={editQty}
-                    onChange={e => setEditQty(e.target.value)}
-                  />
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl"
+                    style={{ background: cfg.bg }}>{cfg.icon}</div>
+                <div className="flex-1 min-w-0">
+                    <div className="relative inline-block max-w-full">
+                        <span className="font-semibold text-base leading-tight">{item.name}</span>
+                        {item.isPurchased && (
+                            <div className="absolute left-0 top-1/2 h-0.5 rounded-full -translate-y-1/2 strike-done"
+                                style={{ width: '100%', background: 'var(--accent)' }} />
+                        )}
+                    </div>
+                    <p className="text-xs opacity-40 mt-0.5">×{item.quantity} · {item.category}</p>
                 </div>
-              </div>
+                <p className="font-bold text-base flex-shrink-0" style={{ opacity: item.isPurchased ? 0.4 : 1 }}>
+                    R${total.toFixed(2)}
+                </p>
+            </button>
+        );
+    }
 
-              {/* Total calculado (solo visual) */}
-              {editPrice && editQty && (
-                <div className={`flex items-center justify-between px-4 py-3 rounded-xl ${isDark ? 'bg-blue-500/10' : 'bg-blue-50'}`}>
-                  <span className={`text-sm ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>Total estimado</span>
-                  <span className={`text-base font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
-                    R$ {((parseFloat(editPrice) || 0) * (parseInt(editQty) || 1)).toFixed(2)}
-                  </span>
-                </div>
-              )}
-
-              {/* Tienda */}
-              <div className="space-y-1.5">
-                <label className={labelCls}>Tienda</label>
-                <input
-                  type="text"
-                  className={inputCls}
-                  value={editStore}
-                  onChange={e => setEditStore(e.target.value)}
-                  placeholder="Ej: Atacadão, Stok Center..."
-                />
-              </div>
-
-              {/* Categoría */}
-              <div className="space-y-1.5">
-                <label className={labelCls}>Categoría</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {ALL_CATEGORIES.map(cat => {
-                    const catColor = CATEGORY_COLORS[cat] || '#8E8E93';
-                    const catIcon = CATEGORY_ICONS[cat] || '📦';
-                    const isSelected = editCategory === cat;
-                    return (
-                      <button
-                        key={cat}
-                        onClick={() => setEditCategory(cat)}
-                        className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-left transition-all border ${
-                          isSelected
-                            ? 'border-transparent'
-                            : isDark ? 'border-white/5 bg-white/5' : 'border-gray-100 bg-gray-50'
-                        }`}
-                        style={isSelected ? { backgroundColor: catColor + '20', borderColor: catColor + '40' } : {}}
-                      >
-                        <span>{catIcon}</span>
-                        <span className={`text-xs truncate ${isSelected ? '' : subtext}`}
-                          style={isSelected ? { color: catColor } : {}}
-                        >
-                          {cat}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Nota */}
-              <div className="space-y-1.5">
-                <label className={labelCls}>Nota (opcional)</label>
-                <input
-                  type="text"
-                  className={inputCls}
-                  value={editNote}
-                  onChange={e => setEditNote(e.target.value)}
-                  placeholder="Ej: marca específica, sin lactosa..."
-                />
-              </div>
-
-              {/* Prioridad */}
-              <div className="space-y-1.5">
-                <label className={labelCls}>Prioridad</label>
-                <div className="flex gap-2">
-                  {(['alta', 'media', 'baja'] as const).map(p => {
-                    const cfg = priorityConfig[p];
-                    return (
-                      <button
-                        key={p}
-                        onClick={() => setEditPriority(p)}
-                        className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                          editPriority === p ? `${cfg.bg} ${cfg.text}` : isDark ? 'bg-white/5 text-gray-500' : 'bg-gray-100 text-gray-400'
-                        }`}
-                      >
-                        {cfg.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Botones de acción */}
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={() => { onRemove(); setShowEditModal(false); }}
-                  className={`px-4 py-3 rounded-2xl text-sm font-semibold text-red-400 border ${
-                    isDark ? 'border-red-500/20 bg-red-500/10 hover:bg-red-500/20' : 'border-red-200 bg-red-50 hover:bg-red-100'
-                  } transition-all`}
-                >
-                  🗑 Eliminar
+    return (
+        <>
+            <div className="relative flex items-center gap-3 px-4 py-4 transition-all duration-200"
+                style={{ borderBottom: isLast ? 'none' : '1px solid var(--border)', opacity: item.isPurchased ? 0.5 : 1 }}>
+                <div className="absolute left-0 top-3 bottom-3 w-0.5 rounded-full" style={{ background: cfg.color }} />
+                <button onClick={handleToggle}
+                    className="w-7 h-7 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200"
+                    style={{
+                        background: item.isPurchased ? 'var(--accent)' : 'transparent',
+                        borderColor: item.isPurchased ? 'var(--accent)' : 'rgba(255,255,255,0.2)'
+                    }}>
+                    {item.isPurchased && (
+                        <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                    )}
                 </button>
-                <button
-                  onClick={handleSave}
-                  className="flex-1 py-3 bg-blue-500 hover:bg-blue-400 text-white font-bold rounded-2xl text-sm transition-all active:scale-[0.98]"
-                >
-                  Guardar cambios
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-lg" style={{ background: cfg.bg }}>
+                    {cfg.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className={`font-semibold text-sm leading-snug ${item.isPurchased ? 'line-through' : ''}`}
+                        style={{ color: item.isPurchased ? 'var(--text-tertiary)' : 'var(--text-primary)' }}>
+                        {item.name}
+                    </p>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span className="text-xs font-medium" style={{ color: cfg.color }}>{item.category}</span>
+                        {item.store && item.store !== 'Varias' && (
+                            <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>· {item.store}</span>
+                        )}
+                        {item.note && (
+                            <span className="text-xs italic" style={{ color: 'var(--text-tertiary)' }}>· {item.note}</span>
+                        )}
+                        {item.priority === 'alta' && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold text-red-400 bg-red-500/10">URGENTE</span>
+                        )}
+                    </div>
+                </div>
+                <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+                    <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>R${total.toFixed(2)}</span>
+                    <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>×{item.quantity}</span>
+                </div>
+                <button onClick={openEdit}
+                    className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-all"
+                    style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}>
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
                 </button>
-              </div>
-
             </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
+
+            {showEdit && (
+                <div className="fixed inset-0 z-50 flex flex-col justify-end">
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-fade-in" onClick={() => setShowEdit(false)} />
+                    <div className="relative z-10 w-full max-w-lg mx-auto rounded-t-3xl animate-slide-up overflow-hidden"
+                        style={{ background: isDark ? '#0D0D16' : '#FFFFFF', maxHeight: '90vh' }}>
+                        <div className="flex justify-center pt-3 pb-1">
+                            <div className="w-10 h-1 rounded-full" style={{ background: 'var(--border-hover)' }} />
+                        </div>
+                        <div className="px-5 py-3 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style={{ background: editCfg.bg }}>
+                                {editCfg.icon}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <h2 className="text-base font-bold font-display" style={{ color: 'var(--text-primary)' }}>Editar producto</h2>
+                                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{item.name}</p>
+                            </div>
+                            <button onClick={() => setShowEdit(false)}
+                                className="w-8 h-8 rounded-xl flex items-center justify-center"
+                                style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}>
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div className="px-5 pb-8 overflow-y-auto space-y-4" style={{ maxHeight: 'calc(90vh - 100px)' }}>
+                            <div className="space-y-1.5">
+                                <label className={lbl}>Nombre</label>
+                                <input type="text" className={inputCls} value={editName} onChange={e => setEditName(e.target.value)} autoFocus />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1.5">
+                                    <label className={lbl}>Precio unitario</label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>R$</span>
+                                        <input type="number" step="0.01" min="0"
+                                            className={`w-full text-sm pl-8 pr-3 py-3 rounded-xl focus:outline-none ${isDark ? 'bg-white/5 text-white' : 'bg-black/5 text-gray-900'}`}
+                                            value={editPrice} onChange={e => setEditPrice(e.target.value)} />
+                                    </div>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className={lbl}>Cantidad</label>
+                                    <input type="number" min="1" className={`${inputCls} text-center`} value={editQty} onChange={e => setEditQty(e.target.value)} />
+                                </div>
+                            </div>
+                            {editPrice && editQty && (
+                                <div className="flex items-center justify-between px-4 py-3 rounded-xl animate-fade-in" style={{ background: 'var(--accent-soft)' }}>
+                                    <span className="text-sm" style={{ color: 'var(--accent)' }}>Total estimado</span>
+                                    <span className="text-base font-bold" style={{ color: 'var(--accent)' }}>R$ {liveTotal}</span>
+                                </div>
+                            )}
+                            <div className="space-y-1.5">
+                                <label className={lbl}>Tienda</label>
+                                <input type="text" className={inputCls} value={editStore} onChange={e => setEditStore(e.target.value)} placeholder="Atacadão, Stok Center..." />
+                            </div>
+                            <div className="space-y-2">
+                                <label className={lbl}>Categoría</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {ALL_CATEGORIES.map(cat => {
+                                        const c = CATEGORY_CONFIG[cat] || CATEGORY_CONFIG['Otros'];
+                                        const sel = editCategory === cat;
+                                        return (
+                                            <button key={cat} onClick={() => setEditCategory(cat)}
+                                                className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all"
+                                                style={{ background: sel ? c.bg : 'var(--bg-elevated)', border: `1px solid ${sel ? c.color + '40' : 'transparent'}` }}>
+                                                <span className="text-base flex-shrink-0">{c.icon}</span>
+                                                <span className="text-xs font-medium truncate" style={{ color: sel ? c.color : 'var(--text-secondary)' }}>{cat}</span>
+                                                {sel && <div className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: c.color }} />}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className={lbl}>Nota (opcional)</label>
+                                <input type="text" className={inputCls} value={editNote} onChange={e => setEditNote(e.target.value)} placeholder="Marca, tamaño, variante..." />
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className={lbl}>Prioridad</label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {[
+                                        { id: 'alta' as const, label: '🔴 Alta', ab: 'rgba(255,69,58,0.15)', at: '#FF453A' },
+                                        { id: 'media' as const, label: '🟡 Media', ab: 'rgba(255,214,10,0.15)', at: '#FFD60A' },
+                                        { id: 'baja' as const, label: '🟢 Baja', ab: 'rgba(48,209,88,0.15)', at: '#30D158' },
+                                    ].map(p => (
+                                        <button key={p.id} onClick={() => setEditPriority(p.id)}
+                                            className="py-2.5 rounded-xl text-sm font-semibold transition-all"
+                                            style={{
+                                                background: editPriority === p.id ? p.ab : 'var(--bg-elevated)',
+                                                color: editPriority === p.id ? p.at : 'var(--text-secondary)'
+                                            }}>
+                                            {p.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="flex gap-3 pt-1">
+                                <button onClick={() => { onRemove(); setShowEdit(false); }}
+                                    className="px-4 py-3 rounded-2xl text-sm font-semibold text-red-400 transition-all"
+                                    style={{ background: 'rgba(255,69,58,0.12)', border: '1px solid rgba(255,69,58,0.2)' }}>
+                                    🗑 Eliminar
+                                </button>
+                                <button onClick={handleSave}
+                                    className="flex-1 py-3 rounded-2xl text-white font-bold text-sm transition-all"
+                                    style={{ background: 'var(--accent)', boxShadow: '0 4px 16px var(--accent-glow)' }}>
+                                    Guardar cambios
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
 }

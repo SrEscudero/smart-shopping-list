@@ -3,10 +3,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#0A0A0F" },
-    { media: "(prefers-color-scheme: light)", color: "#f9fafb" },
-  ],
+  themeColor: "#08080F",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -15,7 +12,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "Compras Inteligentes",
-  description: "Lista de compras inteligente con IA",
+  description: "Lista de compras mensual con IA",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -26,12 +23,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-      </head>
+    <html lang="es" data-theme="dark" data-accent="blue">
       <body className="antialiased">{children}</body>
     </html>
   );
