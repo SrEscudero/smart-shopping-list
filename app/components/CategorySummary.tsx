@@ -3,10 +3,20 @@
 
 import { useShoppingStore } from '../../store/useShoppingStore';
 
-export default function CategorySummary() {
-  const { items, totalBudget } = useShoppingStore();
+const CATEGORY_COLORS: Record<string, string> = {
+  'Frutas y Verduras': '#34C759', 'Carnes y Pescados': '#FF3B30',
+  'Lácteos y Huevos': '#FFCC00', 'Panadería': '#FF9500',
+  'Bebidas': '#5AC8FA', 'Limpieza': '#32ADE6',
+  'Cuidado Personal': '#AF52DE', 'Despensa': '#A2845E',
+  'Congelados': '#00C7BE', 'Mascotas': '#FF6B9D',
+  'Bebés': '#FF2D55', 'Electrónica': '#007AFF',
+  'Ropa': '#BF5AF2', 'Otros': '#8E8E93',
+};
 
-  // 1. Sumar los gastos por categoría
+export default function CategorySummary() {
+  const { items, theme } = useShoppingStore();
+  const isDark = theme === 'dark';
+
   const expensesByCategory = items.reduce((acc, item) => {
     const cost = item.estimatedPrice * item.quantity;
     acc[item.category] = (acc[item.category] || 0) + cost;
@@ -14,62 +24,42 @@ export default function CategorySummary() {
   }, {} as Record<string, number>);
 
   const totalSpent = Object.values(expensesByCategory).reduce((a, b) => a + b, 0);
-
-  // Si no hay gastos aún, no mostramos la barra
   if (totalSpent === 0) return null;
 
-  // 2. Definir una paleta de colores vibrantes estilo Apple
-  const categoryColors: Record<string, string> = {
-    'Frutas y Verduras': 'bg-[#34C759]', // Green
-    'Carnes y Pescados': 'bg-[#FF3B30]', // Red
-    'Lácteos y Huevos': 'bg-[#FFCC00]',  // Yellow
-    'Panadería': 'bg-[#FF9500]',         // Orange
-    'Bebidas': 'bg-[#5AC8FA]',           // Light Blue
-    'Limpieza': 'bg-[#32ADE6]',          // Cyan
-    'Cuidado Personal': 'bg-[#AF52DE]',  // Purple
-    'Despensa': 'bg-[#A2845E]',          // Brown
-    'Congelados': 'bg-[#00C7BE]',        // Teal
-    'Mascotas': 'bg-[#FF2D55]',          // Pink
-    'Bebés': 'bg-[#FF6482]',             // Soft Pink
-    'Otros': 'bg-[#8E8E93]',             // Gray
-  };
-
-  // 3. Ordenar categorías de mayor a menor gasto
-  const sortedCategories = Object.entries(expensesByCategory)
-    .sort(([, a], [, b]) => b - a)
-    .map(([category, amount]) => ({
-      category,
-      amount,
-      percentage: (amount / totalSpent) * 100,
-      color: categoryColors[category] || categoryColors['Otros'],
+  const sorted = Object.entries(expensesByCategory)
+    .sort(([,a],[,b]) => b-a)
+    .map(([cat, amount]) => ({
+      cat, amount,
+      pct: (amount / totalSpent) * 100,
+      color: CATEGORY_COLORS[cat] || '#8E8E93',
     }));
 
   return (
-    <div className="bg-[#1C1C1C] p-5 sm:p-6 rounded-2xl shadow-lg border border-gray-800 mb-6 w-full">
-      <div className="flex justify-between items-end mb-4">
-        <h3 className="text-white font-semibold tracking-tight">Resumen por Categoría</h3>
-        <span className="text-sm text-gray-400">Total: R$ {totalSpent.toFixed(2)}</span>
+    <div className={`${isDark ? 'bg-[#13131A] border-white/5' : 'bg-white border-gray-200'} rounded-2xl border p-4 space-y-3`}>
+      <div className="flex items-center justify-between">
+        <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Desglose</span>
+        <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>R$ {totalSpent.toFixed(2)}</span>
       </div>
 
-      {/* BARRA DE PROGRESO ESTILO APPLE */}
-      <div className="w-full h-3 sm:h-4 bg-gray-800 rounded-full overflow-hidden flex mb-4">
-        {sortedCategories.map((cat) => (
+      {/* Segmented bar */}
+      <div className="w-full h-3 rounded-full overflow-hidden flex gap-px">
+        {sorted.map(({ cat, pct, color }) => (
           <div
-            key={cat.category}
-            style={{ width: `${cat.percentage}%` }}
-            className={`h-full ${cat.color} transition-all duration-500 hover:brightness-110`}
-            title={`${cat.category}: R$ ${cat.amount.toFixed(2)} (${cat.percentage.toFixed(1)}%)`}
+            key={cat}
+            className="h-full transition-all duration-500 hover:brightness-110"
+            style={{ width: `${pct}%`, backgroundColor: color }}
+            title={`${cat}: R$ ${expensesByCategory[cat].toFixed(2)} (${pct.toFixed(1)}%)`}
           />
         ))}
       </div>
 
-      {/* LEYENDA (Puntitos de colores) */}
-      <div className="flex flex-wrap gap-x-4 gap-y-2">
-        {sortedCategories.map((cat) => (
-          <div key={cat.category} className="flex items-center gap-1.5">
-            <span className={`w-2.5 h-2.5 rounded-full ${cat.color}`} />
-            <span className="text-xs text-gray-300">
-              {cat.category} <span className="text-gray-500 ml-1">{cat.percentage.toFixed(0)}%</span>
+      {/* Legend - compact */}
+      <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+        {sorted.map(({ cat, pct, color }) => (
+          <div key={cat} className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+            <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+              {cat.split(' ')[0]} <span className={isDark ? 'text-gray-600' : 'text-gray-400'}>{pct.toFixed(0)}%</span>
             </span>
           </div>
         ))}

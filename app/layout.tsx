@@ -2,18 +2,20 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
-// Configuración especial para móviles
 export const viewport: Viewport = {
-  themeColor: "#111111",
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#0A0A0F" },
+    { media: "(prefers-color-scheme: light)", color: "#f9fafb" },
+  ],
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  userScalable: false, // Evita que la pantalla haga zoom en iOS al tocar los inputs
+  userScalable: false,
 };
 
 export const metadata: Metadata = {
   title: "Compras Inteligentes",
-  description: "Sistema avanzado de gestión de compras",
+  description: "Lista de compras inteligente con IA",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -22,14 +24,15 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      <body className="antialiased bg-[#111111]">{children}</body>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+      </head>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }

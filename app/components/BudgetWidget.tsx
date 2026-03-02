@@ -4,75 +4,136 @@
 import { useState, useRef, useEffect } from 'react';
 import { useShoppingStore } from '../../store/useShoppingStore';
 
-export default function BudgetWidget() {
-  const { totalBudget, setBudget, items } = useShoppingStore();
-  const [isEditing, setIsEditing] = useState(false);
-  const [inputValue, setInputValue] = useState(totalBudget ? totalBudget.toString() : '');
-  const inputRef = useRef<HTMLInputElement>(null);
+interface BudgetWidgetProps {
+  compact?: boolean;
+  full?: boolean;
+}
 
-  // Auto-focus cuando hacemos clic para editar
+export default function BudgetWidget({ compact = false, full = false }: BudgetWidgetProps) {
+  const { totalBudget, setBudget, items, theme, toggleTheme } = useShoppingStore();
+  const [isEditing, setIsEditing] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const isDark = theme === 'dark';
+
   useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-    }
+    if (isEditing && inputRef.current) inputRef.current.focus();
   }, [isEditing]);
 
   const handleSave = () => {
     setIsEditing(false);
-    const newBudget = parseFloat(inputValue);
-    if (!isNaN(newBudget) && newBudget >= 0) {
-      setBudget(newBudget);
-    } else {
-      setInputValue(totalBudget.toString()); // Revierte si el valor no es válido
-    }
+    const val = parseFloat(inputValue);
+    if (!isNaN(val) && val >= 0) setBudget(val);
+    else setInputValue(totalBudget.toString());
   };
 
-  // Calculamos cuánto hemos gastado (sumando productos comprados o estimados)
-  const totalSpent = items.reduce((acc, item) => {
-    return acc + (item.isPurchased ? (item.finalPrice || 0) : item.estimatedPrice) * item.quantity;
-  }, 0);
+  const totalEstimated = items.reduce((acc, i) => acc + i.estimatedPrice * i.quantity, 0);
+  const totalSpent = items.filter(i => i.isPurchased).reduce((acc, i) => acc + (i.finalPrice || i.estimatedPrice) * i.quantity, 0);
+  const remaining = totalBudget - totalEstimated;
+  const progress = totalBudget > 0 ? Math.min((totalEstimated / totalBudget) * 100, 100) : 0;
+  const isOver = remaining < 0;
 
-  const remaining = totalBudget - totalSpent;
-  const isOverBudget = remaining < 0;
+  // COMPACT - just show remaining in header
+  if (compact) {
+    return (
+      <div className="flex items-center gap-2">
+        {totalBudget > 0 && (
+          <div className={`flex flex-col items-end`}>
+            <span className={`text-xs font-medium ${isOver ? 'text-red-400' : 'text-green-400'}`}>
+              {isOver ? '−' : '+'}R$ {Math.abs(remaining).toFixed(0)}
+            </span>
+          </div>
+        )}
+        <button
+          onClick={toggleTheme}
+          className={`p-2 rounded-xl text-sm ${isDark ? 'bg-white/5 text-yellow-400' : 'bg-gray-100 text-gray-600'}`}
+          title="Cambiar tema"
+        >
+          {isDark ? '☀️' : '🌙'}
+        </button>
+      </div>
+    );
+  }
 
-  return (
-    <div className="flex gap-4">
-      {/* Widget de Saldo Restante (Solo aparece si ya definiste un presupuesto) */}
-      {totalBudget > 0 && (
-        <div className={`bg-white/70 backdrop-blur-md px-6 py-3 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border flex flex-col items-end transition-all ${isOverBudget ? 'border-red-400/60 text-red-600' : 'border-white/60 text-black'}`}>
-          <span className="text-[10px] font-semibold uppercase tracking-widest opacity-60">Disponible</span>
-          <span className="text-2xl font-bold tracking-tight">R$ {remaining.toFixed(2)}</span>
+  // FULL - card with progress bar
+  if (full) {
+    return (
+      <div className={`${isDark ? 'bg-[#13131A]' : 'bg-white'} rounded-2xl border ${isDark ? 'border-white/5' : 'border-gray-200'} p-4 space-y-3`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-base">💰</span>
+            <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>Presupuesto</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => { setInputValue(totalBudget.toString()); setIsEditing(!isEditing); }}
+              className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${isDark ? 'bg-white/5 text-gray-400 hover:text-white' : 'bg-gray-100 text-gray-500 hover:text-gray-800'}`}
+            >
+              {isEditing ? 'Cancelar' : 'Editar'}
+            </button>
+          </div>
         </div>
-      )}
 
-      {/* Widget de Presupuesto Total (Editable) */}
-      <div 
-        className="bg-white/70 backdrop-blur-md px-6 py-3 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/60 flex flex-col items-end transition-all hover:scale-105 cursor-pointer"
-        onClick={() => !isEditing && setIsEditing(true)}
-        title="Clic para editar tu presupuesto"
-      >
-        <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-widest">Presupuesto Total</span>
-        
         {isEditing ? (
-          <div className="flex items-center text-2xl font-bold text-black tracking-tight">
-            <span>R$</span>
+          <div className="flex items-center gap-2">
+            <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>R$</span>
             <input
               ref={inputRef}
               type="number"
-              placeholder="1500"
-              className="bg-transparent focus:outline-none w-24 text-right ml-1 placeholder:text-gray-300"
+              placeholder="0.00"
+              className={`flex-1 text-2xl font-bold bg-transparent focus:outline-none ${isDark ? 'text-white' : 'text-gray-900'}`}
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+              onChange={e => setInputValue(e.target.value)}
               onBlur={handleSave}
-              onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+              onKeyDown={e => e.key === 'Enter' && handleSave()}
             />
+            <button onClick={handleSave} className="bg-blue-500 text-white px-4 py-1.5 rounded-xl text-sm font-semibold">
+              Guardar
+            </button>
           </div>
         ) : (
-          <span className="text-2xl font-bold text-black tracking-tight">
-            R$ {totalBudget.toFixed(2)}
-          </span>
+          <div className="grid grid-cols-3 gap-3">
+            <div className={`${isDark ? 'bg-white/5' : 'bg-gray-50'} rounded-xl p-3`}>
+              <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'} mb-1`}>Presupuesto</p>
+              <p className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                R$ {totalBudget > 0 ? totalBudget.toFixed(0) : '—'}
+              </p>
+            </div>
+            <div className={`${isDark ? 'bg-white/5' : 'bg-gray-50'} rounded-xl p-3`}>
+              <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'} mb-1`}>Estimado</p>
+              <p className={`text-base font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
+                R$ {totalEstimated.toFixed(0)}
+              </p>
+            </div>
+            <div className={`${isOver ? 'bg-red-500/10' : isDark ? 'bg-green-500/10' : 'bg-green-50'} rounded-xl p-3`}>
+              <p className={`text-xs ${isOver ? 'text-red-400' : isDark ? 'text-green-400' : 'text-green-600'} mb-1`}>
+                {isOver ? 'Excedido' : 'Disponible'}
+              </p>
+              <p className={`text-base font-bold ${isOver ? 'text-red-400' : isDark ? 'text-green-400' : 'text-green-600'}`}>
+                {totalBudget > 0 ? `R$ ${Math.abs(remaining).toFixed(0)}` : '—'}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Progress bar */}
+        {totalBudget > 0 && !isEditing && (
+          <div>
+            <div className={`w-full h-2 ${isDark ? 'bg-white/5' : 'bg-gray-100'} rounded-full overflow-hidden`}>
+              <div
+                className={`h-full rounded-full transition-all duration-700 ${isOver ? 'bg-red-500' : progress > 80 ? 'bg-orange-500' : 'bg-blue-500'}`}
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <div className={`flex justify-between mt-1 text-xs ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+              <span>{progress.toFixed(0)}% usado</span>
+              <span>R$ {totalSpent.toFixed(2)} gastado</span>
+            </div>
+          </div>
         )}
       </div>
-    </div>
-  );
+    );
+  }
+
+  return null;
 }
