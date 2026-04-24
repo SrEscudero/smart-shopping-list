@@ -2,16 +2,7 @@
 "use client";
 
 import { useShoppingStore } from '../../store/useShoppingStore';
-
-const CATEGORY_COLORS: Record<string, string> = {
-  'Frutas y Verduras': '#34C759', 'Carnes y Pescados': '#FF3B30',
-  'Lácteos y Huevos': '#FFCC00', 'Panadería': '#FF9500',
-  'Bebidas': '#5AC8FA', 'Limpieza': '#32ADE6',
-  'Cuidado Personal': '#AF52DE', 'Despensa': '#A2845E',
-  'Congelados': '#00C7BE', 'Mascotas': '#FF6B9D',
-  'Bebés': '#FF2D55', 'Electrónica': '#007AFF',
-  'Ropa': '#BF5AF2', 'Otros': '#8E8E93',
-};
+import { CATEGORY_CONFIG } from '../../utils/constants';
 
 export default function CategorySummary() {
   const { items, theme } = useShoppingStore();
@@ -31,7 +22,7 @@ export default function CategorySummary() {
     .map(([cat, amount]) => ({
       cat, amount,
       pct: (amount / totalSpent) * 100,
-      color: CATEGORY_COLORS[cat] || '#8E8E93',
+      color: CATEGORY_CONFIG[cat]?.color || '#8E8E93',
     }));
 
   return (

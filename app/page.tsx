@@ -26,6 +26,12 @@ export default function Home() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [search, setSearch] = useState('');
+  const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  };
 
   const isDark = theme === 'dark';
 
@@ -46,7 +52,7 @@ export default function Home() {
 
   const exportToWhatsApp = () => {
     const pend = items.filter(i => !i.isPurchased);
-    if (!pend.length) { alert('No hay productos pendientes.'); return; }
+    if (!pend.length) { showToast('No hay productos pendientes.', 'error'); return; }
     const grouped = pend.reduce((acc, item) => {
       if (!acc[item.store]) acc[item.store] = [];
       acc[item.store].push(item); return acc;
@@ -92,7 +98,7 @@ export default function Home() {
       const text = event.target?.result as string;
       const lines = text.split('\n').filter(line => line.trim() !== '');
       if (lines.length <= 1) {
-        alert("El archivo está vacío o solo contiene cabeceras.");
+        showToast("El archivo está vacío o solo contiene cabeceras.", 'error');
         return; 
       }
 
@@ -119,7 +125,7 @@ export default function Home() {
       });
 
       addMultipleProducts(importedProducts);
-      alert(`${importedProducts.length} productos importados y ordenados con éxito.`);
+      showToast(`${importedProducts.length} productos importados y ordenados con éxito.`, 'success');
     };
     
     reader.readAsText(file);
@@ -138,6 +144,17 @@ export default function Home() {
       <div className="min-h-screen transition-colors duration-300" style={{ background: 'var(--bg)', color: 'var(--text-primary)' }}>
 
         {showCamera && <CameraScanner onClose={() => setShowCamera(false)} />}
+
+        {/* TOAST NOTIFICATION */}
+        {toast && (
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-slide-up flex items-center gap-2 px-4 py-3 rounded-2xl shadow-xl"
+            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
+            <span className="text-xl">
+              {toast.type === 'error' ? '⚠️' : toast.type === 'success' ? '✅' : 'ℹ️'}
+            </span>
+            <span className="text-sm font-semibold">{toast.message}</span>
+          </div>
+        )}
 
         {/* ── SHOPPING MODE OVERLAY HEADER ── */}
         {shoppingMode && (
@@ -229,7 +246,7 @@ export default function Home() {
         </div>
 
         {/* ── CONTENT ── */}
-        <main className="max-w-2xl mx-auto px-4 pb-36 pt-4 space-y-5">
+        <main className="max-w-2xl mx-auto px-4 pb-48 pt-4 space-y-5">
 
           {/* HOME TAB */}
           {activeTab === 'home' && (
@@ -343,9 +360,9 @@ export default function Home() {
                     <div className="divide-y divide-gray-500/10">
                       {filtered.map((item, idx) => (
                         <ProductCard key={item.id} item={item}
-                          onToggle={() => toggleProduct(item.id)}
-                          onRemove={() => removeProduct(item.id)}
-                          onUpdate={(d) => updateProduct(item.id, d)}
+                          onToggle={toggleProduct}
+                          onRemove={removeProduct}
+                          onUpdate={updateProduct}
                           isDark={isDark} shoppingMode={shoppingMode} isLast={idx === filtered.length - 1}
                         />
                       ))}

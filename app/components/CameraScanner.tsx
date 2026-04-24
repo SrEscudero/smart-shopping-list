@@ -62,11 +62,13 @@ export default function CameraScanner({ onClose }: CameraScannerProps) {
     if (!videoRef.current || !canvasRef.current) return;
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    const MAX_WIDTH = 1000;
+    const scale = Math.min(1, MAX_WIDTH / video.videoWidth);
+    canvas.width = video.videoWidth * scale;
+    canvas.height = video.videoHeight * scale;
     const ctx = canvas.getContext('2d');
-    ctx?.drawImage(video, 0, 0);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
     setCapturedImage(dataUrl);
     // Stop camera
     stream?.getTracks().forEach(t => t.stop());
@@ -80,8 +82,19 @@ export default function CameraScanner({ onClose }: CameraScannerProps) {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      setCapturedImage(ev.target?.result as string);
-      setMode('preview');
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1000;
+        const scale = Math.min(1, MAX_WIDTH / img.width);
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+        setCapturedImage(canvas.toDataURL('image/jpeg', 0.8));
+        setMode('preview');
+      };
+      img.src = ev.target?.result as string;
     };
     reader.readAsDataURL(file);
   };

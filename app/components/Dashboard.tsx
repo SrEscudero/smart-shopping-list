@@ -1,7 +1,7 @@
 // app/components/Dashboard.tsx
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useShoppingStore } from '../../store/useShoppingStore';
 
 const ACCENT_OPTIONS = [
@@ -23,13 +23,18 @@ export default function Dashboard() {
     return () => clearTimeout(t);
   }, []);
 
-  const totalItems = items.length;
-  const purchased = items.filter(i => i.isPurchased).length;
-  const pending = totalItems - purchased;
-  const totalEstimated = items.reduce((a, i) => a + i.estimatedPrice * i.quantity, 0);
-  const remaining = totalBudget - totalEstimated;
-  const progress = totalItems > 0 ? (purchased / totalItems) * 100 : 0;
-  const isOver = totalBudget > 0 && remaining < 0;
+  const stats = useMemo(() => {
+    const totalItems = items.length;
+    const purchased = items.filter(i => i.isPurchased).length;
+    const pending = totalItems - purchased;
+    const totalEstimated = items.reduce((a, i) => a + i.estimatedPrice * i.quantity, 0);
+    const remaining = totalBudget - totalEstimated;
+    const progress = totalItems > 0 ? (purchased / totalItems) * 100 : 0;
+    const isOver = totalBudget > 0 && remaining < 0;
+    return { totalItems, purchased, pending, totalEstimated, remaining, progress, isOver };
+  }, [items, totalBudget]);
+
+  const { totalItems, purchased, pending, totalEstimated, remaining, progress, isOver } = stats;
   const isDark = theme === 'dark';
 
   // SVG circle progress
