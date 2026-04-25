@@ -108,7 +108,7 @@ export default function StatsPanel() {
                   ))}
                 </Pie>
                 <RechartsTooltip 
-                  formatter={(value: number) => `R$ ${value.toFixed(2)}`}
+                  formatter={(value: any) => `R$ ${Number(value).toFixed(2)}`}
                   contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '12px', color: 'var(--text-primary)' }}
                   itemStyle={{ color: 'var(--text-primary)' }}
                 />
