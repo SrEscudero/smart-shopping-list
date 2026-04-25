@@ -255,7 +255,6 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
                             background: isDark ? '#0D0D16' : '#FFFFFF',
                             borderRadius: '20px 20px 0 0',
                             maxHeight: '88svh',
-                            maxHeight: '88vh', /* fallback */
                             zIndex: 1,
                         }}>
 
