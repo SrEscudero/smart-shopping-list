@@ -1,8 +1,9 @@
 // app/page.tsx
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useShoppingStore, Product } from '../store/useShoppingStore';
+import { motion, AnimatePresence } from 'framer-motion';
 import ThemeProvider from './components/ThemeProvider';
 import Dashboard from './components/Dashboard';
 import AddProductForm from './components/AddProductForm';
@@ -12,6 +13,27 @@ import HistoryModal from './components/HistoryModal';
 import ProductCard from './components/ProductCard';
 import CameraScanner from './components/CameraScanner';
 import BudgetWidget from './components/BudgetWidget';
+import OnboardingScreen from './components/OnboardingScreen';
+import { Home as HomeIcon, ClipboardList, BarChart3, CalendarDays, ShoppingCart, Camera, Plus, Minus, Download, Upload, AlertTriangle, CheckCircle2, Info, Search, X, PartyPopper } from 'lucide-react';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+function SortableProductCard(props: any) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.item.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : 1,
+    position: isDragging ? 'relative' as const : undefined,
+    opacity: isDragging ? 0.8 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="touch-pan-y">
+      <ProductCard {...props} />
+    </div>
+  );
+}
 
 export default function Home() {
   const {
@@ -26,7 +48,23 @@ export default function Home() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [search, setSearch] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
+  const [celebration, setCelebration] = useState(false);
+  const [prevPending, setPrevPending] = useState<number | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Show onboarding only on first visit
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !localStorage.getItem('onboarding_done')) {
+      setShowOnboarding(true);
+    }
+  }, []);
+
+  const handleOnboardingDone = () => {
+    localStorage.setItem('onboarding_done', '1');
+    setShowOnboarding(false);
+  };
 
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
     setToast({ message, type });
@@ -34,6 +72,23 @@ export default function Home() {
   };
 
   const isDark = theme === 'dark';
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = items.findIndex(i => i.id === active.id);
+      const newIndex = items.findIndex(i => i.id === over.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        useShoppingStore.getState().reorderItems(oldIndex, newIndex);
+      }
+    }
+  };
 
   let filtered = items.filter(item => {
     const mf = filter === 'pending' ? !item.isPurchased : filter === 'purchased' ? item.isPurchased : true;
@@ -49,6 +104,15 @@ export default function Home() {
   const totalSum = filtered.reduce((a, i) => a + i.estimatedPrice * i.quantity, 0);
   const pendingCount = items.filter(i => !i.isPurchased).length;
   const purchased = items.filter(i => i.isPurchased).length;
+
+  // Celebration when all items completed
+  useEffect(() => {
+    if (prevPending !== null && prevPending > 0 && pendingCount === 0 && items.length > 0) {
+      setCelebration(true);
+      setTimeout(() => setCelebration(false), 4000);
+    }
+    setPrevPending(pendingCount);
+  }, [pendingCount, items.length]);
 
   const exportToWhatsApp = () => {
     const pend = items.filter(i => !i.isPurchased);
@@ -133,28 +197,73 @@ export default function Home() {
   };
 
   const tabs = [
-    { id: 'home' as const, icon: '⚡', label: 'Inicio' },
-    { id: 'list' as const, icon: '📋', label: 'Lista' },
-    { id: 'stats' as const, icon: '📊', label: 'Stats' },
-    { id: 'history' as const, icon: '📅', label: 'Historial' },
+    { id: 'home' as const, icon: <HomeIcon size={20} strokeWidth={2} />, label: 'Inicio' },
+    { id: 'list' as const, icon: <ClipboardList size={20} strokeWidth={2} />, label: 'Lista' },
+    { id: 'stats' as const, icon: <BarChart3 size={20} strokeWidth={2} />, label: 'Stats' },
+    { id: 'history' as const, icon: <CalendarDays size={20} strokeWidth={2} />, label: 'Historial' },
   ];
+
+  const tabVariants = {
+    initial: { opacity: 0, y: 12, scale: 0.98 },
+    animate: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.3, ease: [0.32, 0.72, 0, 1] } },
+    exit: { opacity: 0, y: -8, scale: 0.98, transition: { duration: 0.15 } },
+  };
 
   return (
     <ThemeProvider>
       <div className="min-h-screen transition-colors duration-300" style={{ background: 'var(--bg)', color: 'var(--text-primary)' }}>
 
+        {/* ONBOARDING */}
+        <AnimatePresence>
+          {showOnboarding && (
+            <motion.div key="onboarding" initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}>
+              <OnboardingScreen onDone={handleOnboardingDone} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {showCamera && <CameraScanner onClose={() => setShowCamera(false)} />}
 
+        {/* CELEBRATION OVERLAY */}
+        <AnimatePresence>
+          {celebration && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[60] flex items-center justify-center pointer-events-none"
+            >
+              <motion.div
+                initial={{ scale: 0.3, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                transition={{ type: 'spring', damping: 12, stiffness: 200 }}
+                className="bg-[var(--bg-card)] border border-[var(--border)] rounded-3xl p-8 flex flex-col items-center gap-3 shadow-2xl"
+              >
+                <PartyPopper size={48} className="text-[var(--accent)] animate-bounce" />
+                <h2 className="text-xl font-bold font-display text-[var(--text-primary)]">¡Lista completa!</h2>
+                <p className="text-sm text-[var(--text-secondary)]">{items.length} productos comprados</p>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* TOAST NOTIFICATION */}
-        {toast && (
-          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 animate-slide-up flex items-center gap-2 px-4 py-3 rounded-2xl shadow-xl"
-            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}>
-            <span className="text-xl">
-              {toast.type === 'error' ? '⚠️' : toast.type === 'success' ? '✅' : 'ℹ️'}
-            </span>
-            <span className="text-sm font-semibold">{toast.message}</span>
-          </div>
-        )}
+        <AnimatePresence>
+          {toast && (
+            <motion.div
+              initial={{ opacity: 0, y: -20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.95 }}
+              className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-3 rounded-2xl shadow-xl glass-premium"
+            >
+              <span className="flex-shrink-0">
+                {toast.type === 'error' ? <AlertTriangle size={20} className="text-red-400" /> : toast.type === 'success' ? <CheckCircle2 size={20} className="text-green-400" /> : <Info size={20} className="text-blue-400" />}
+              </span>
+              <span className="text-sm font-semibold">{toast.message}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ── SHOPPING MODE OVERLAY HEADER ── */}
         {shoppingMode && (
@@ -189,31 +298,34 @@ export default function Home() {
 
         {/* ── HEADER ── */}
         <header
-          className="sticky z-30 backdrop-blur-xl transition-all"
+          className="sticky z-30 glass-premium transition-all"
           style={{
-            top: shoppingMode ? '56px' : 0, // Ajustado para que no se sobreponga el Modo Compras
-            background: isDark ? 'rgba(8,8,15,0.85)' : 'rgba(242,242,247,0.85)',
-            borderBottom: '1px solid var(--border)',
-            paddingTop: shoppingMode ? 0 : 'env(safe-area-inset-top)'
+            top: shoppingMode ? '52px' : 0,
+            paddingTop: shoppingMode ? 0 : 'env(safe-area-inset-top, 0px)'
           }}
         >
-          <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+          <div className="px-4 py-3 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl"
-                style={{ background: 'var(--accent-soft)' }}>🛒</div>
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-[var(--accent)]"
+                style={{ background: 'var(--accent-soft)' }}>
+                <ShoppingCart size={20} strokeWidth={2.5} />
+              </div>
               <div className="min-w-0">
-                <h1 className="text-lg font-bold font-display leading-none truncate" style={{ color: 'var(--text-primary)' }}>
-                  Compras
-                </h1>
+                <h1 className="text-base font-bold font-display leading-none truncate" style={{ color: 'var(--text-primary)' }}>Compras</h1>
                 <p className="text-xs mt-0.5 capitalize truncate" style={{ color: 'var(--text-secondary)' }}>{month}</p>
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               {pendingCount > 0 && (
-                <span className="text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-sm"
-                  style={{ background: 'var(--accent)' }}>
+                <motion.span
+                  key={pendingCount}
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="text-white text-xs font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: 'var(--accent)' }}
+                >
                   {pendingCount}
-                </span>
+                </motion.span>
               )}
               <BudgetWidget compact />
             </div>
@@ -221,23 +333,19 @@ export default function Home() {
         </header>
 
         {/* ── TABS ── */}
-        <div className="sticky z-20 backdrop-blur-xl"
-          style={{
-            top: shoppingMode ? '120px' : '64px',
-            background: isDark ? 'rgba(8,8,15,0.85)' : 'rgba(242,242,247,0.85)',
-            borderBottom: '1px solid var(--border)',
-          }}>
-          <div className="max-w-2xl mx-auto px-2 sm:px-4">
-            {/* Padding negativo para permitir scroll de borde a borde en móviles */}
-            <div className="flex gap-1 py-2 overflow-x-auto scrollbar-hide px-2 sm:px-0">
+        <div className="sticky z-20 glass-premium"
+          style={{ top: shoppingMode ? '104px' : '52px' }}
+        >
+          <div className="px-3">
+            <div className="flex gap-1 py-2 overflow-x-auto scrollbar-hide">
               {tabs.map(tab => (
                 <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex-shrink-0 font-display"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all flex-shrink-0 font-display btn-ripple"
                   style={activeTab === tab.id
-                    ? { background: 'var(--accent)', color: '#fff', boxShadow: '0 4px 12px var(--accent-glow)' }
-                    : { color: 'var(--text-secondary)', background: 'transparent' }
+                    ? { background: 'var(--accent)', color: '#fff', boxShadow: '0 2px 8px var(--accent-glow)', minHeight: 'unset' }
+                    : { color: 'var(--text-secondary)', background: 'transparent', minHeight: 'unset' }
                   }>
-                  <span className="text-base">{tab.icon}</span>
+                  <span className="flex items-center justify-center">{tab.icon}</span>
                   <span>{tab.label}</span>
                 </button>
               ))}
@@ -246,27 +354,27 @@ export default function Home() {
         </div>
 
         {/* ── CONTENT ── */}
-        <main className="max-w-2xl mx-auto px-4 pb-48 pt-4 space-y-5">
-
-          {/* HOME TAB */}
-          {activeTab === 'home' && (
-            <div className="animate-slide-up space-y-5">
-              <Dashboard />
-              <BudgetWidget full />
-              <CategorySummary />
-            </div>
-          )}
+        <main className="px-3 pb-32 pt-3 space-y-4">
+          <AnimatePresence mode="wait">
+            {/* HOME TAB */}
+            {activeTab === 'home' && (
+              <motion.div key="home" variants={tabVariants} initial="initial" animate="animate" exit="exit" className="space-y-5">
+                <Dashboard />
+                <BudgetWidget full />
+                <CategorySummary />
+              </motion.div>
+            )}
 
           {/* LIST TAB */}
           {activeTab === 'list' && (
-            <div className="animate-slide-up space-y-4">
+            <motion.div key="list" variants={tabVariants} initial="initial" animate="animate" exit="exit" className="space-y-4">
 
               {/* Shopping mode shortcut */}
               {!shoppingMode && items.length > 0 && (
                 <button onClick={toggleShoppingMode}
                   className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl transition-all card-hover shadow-sm"
                   style={{ background: 'var(--accent-soft)', border: '1px solid rgba(var(--accent-rgb),0.2)' }}>
-                  <span className="text-2xl">🛒</span>
+                  <ShoppingCart size={24} className="text-[var(--accent)]" />
                   <span className="text-sm font-bold flex-1 text-left" style={{ color: 'var(--accent)' }}>
                     Activar Modo Compras
                   </span>
@@ -277,18 +385,29 @@ export default function Home() {
               )}
 
               {/* Search + filters */}
-              <div className="rounded-2xl overflow-hidden shadow-sm" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              <div className="rounded-2xl overflow-hidden shadow-sm gradient-card" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
                 {/* Search */}
                 <div className="flex items-center gap-2 px-3 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
-                  <svg className="w-5 h-5 flex-shrink-0" style={{ color: 'var(--text-tertiary)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                  <input type="text" placeholder="Buscar producto, categoría o tienda..."
-                    className="flex-1 bg-transparent text-sm w-full focus:outline-none placeholder-opacity-60"
-                    style={{ color: 'var(--text-primary)' }}
-                    value={search} onChange={e => setSearch(e.target.value)} />
-                  {search && (
-                    <button onClick={() => setSearch('')} className="p-1 text-lg leading-none rounded-full bg-gray-500/10" style={{ color: 'var(--text-tertiary)' }}>×</button>
+                  <button onClick={() => { setSearchOpen(!searchOpen); if (searchOpen) setSearch(''); }}
+                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all btn-ripple"
+                    style={{ background: searchOpen ? 'var(--accent-soft)' : 'transparent', color: searchOpen ? 'var(--accent)' : 'var(--text-tertiary)' }}
+                  >
+                    <Search size={18} />
+                  </button>
+                  {searchOpen ? (
+                    <div className="flex-1 flex items-center gap-2 search-expand">
+                      <input type="text" placeholder="Buscar producto, categoría o tienda..."
+                        className="flex-1 bg-transparent text-sm w-full focus:outline-none placeholder-opacity-60"
+                        style={{ color: 'var(--text-primary)' }}
+                        value={search} onChange={e => setSearch(e.target.value)} autoFocus />
+                      {search && (
+                        <button onClick={() => setSearch('')} className="p-1 rounded-full" style={{ color: 'var(--text-tertiary)' }}>
+                          <X size={16} />
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-sm flex-1" style={{ color: 'var(--text-tertiary)' }}>Buscar...</span>
                   )}
                 </div>
                 {/* Filters */}
@@ -315,35 +434,29 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Botones de acción principales - AHORA SE ADAPTAN VERTICALMENTE EN MÓVILES MUY PEQUEÑOS */}
-              <div className="flex flex-col sm:flex-row gap-2">
-                <button onClick={() => setShowAddForm(!showAddForm)}
-                  className="flex-1 font-bold py-3.5 px-5 rounded-2xl flex items-center justify-center gap-2 transition-all text-sm font-display shadow-sm"
-                  style={showAddForm
-                    ? { background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }
-                    : { background: 'var(--accent)', color: '#fff', boxShadow: '0 4px 20px var(--accent-glow)' }
-                  }>
-                  <span className="text-xl leading-none">{showAddForm ? '−' : '+'}</span>
-                  <span>{showAddForm ? 'Cerrar formulario' : 'Agregar producto'}</span>
-                </button>
+              {/* Action buttons */}
+              <div className="flex gap-2">
                 <button onClick={() => setShowCamera(true)}
-                  className="py-3.5 px-5 rounded-2xl flex items-center justify-center gap-2 transition-all text-sm font-bold shadow-sm"
+                  className="py-3.5 px-5 rounded-2xl flex items-center justify-center gap-2 transition-all text-sm font-bold shadow-sm btn-ripple"
                   style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
+                  <Camera size={20} />
                   <span>Escanear</span>
                 </button>
               </div>
 
-              {showAddForm && <AddProductForm onAdd={() => setShowAddForm(false)} />}
+              <AnimatePresence>
+                {showAddForm && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3 }}>
+                    <AddProductForm onAdd={() => setShowAddForm(false)} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Product list */}
               <div className="rounded-2xl overflow-hidden shadow-sm" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
                 {filtered.length === 0 ? (
                   <div className="py-16 px-4 text-center flex flex-col items-center gap-4">
-                    <span className="text-6xl animate-float">🛒</span>
+                    <ShoppingCart size={48} className="animate-float opacity-20 text-[var(--text-primary)]" strokeWidth={1.5} />
                     <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
                       {search ? 'No se encontraron resultados.' : 'Tu lista está vacía.'}
                     </p>
@@ -358,14 +471,43 @@ export default function Home() {
                 ) : (
                   <>
                     <div className="divide-y divide-gray-500/10">
-                      {filtered.map((item, idx) => (
-                        <ProductCard key={item.id} item={item}
-                          onToggle={toggleProduct}
-                          onRemove={removeProduct}
-                          onUpdate={updateProduct}
-                          isDark={isDark} shoppingMode={shoppingMode} isLast={idx === filtered.length - 1}
-                        />
-                      ))}
+                      {sortBy === 'default' && !search ? (
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                          <SortableContext items={filtered.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                            {filtered.map((item, idx) => (
+                              <motion.div
+                                key={item.id}
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.25, delay: Math.min(idx * 0.04, 0.3) }}
+                              >
+                                <SortableProductCard item={item}
+                                  onToggle={toggleProduct}
+                                  onRemove={removeProduct}
+                                  onUpdate={updateProduct}
+                                  isDark={isDark} shoppingMode={shoppingMode} isLast={idx === filtered.length - 1}
+                                />
+                              </motion.div>
+                            ))}
+                          </SortableContext>
+                        </DndContext>
+                      ) : (
+                        filtered.map((item, idx) => (
+                          <motion.div
+                            key={item.id}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.25, delay: Math.min(idx * 0.04, 0.3) }}
+                          >
+                            <ProductCard item={item}
+                              onToggle={toggleProduct}
+                              onRemove={removeProduct}
+                              onUpdate={updateProduct}
+                              isDark={isDark} shoppingMode={shoppingMode} isLast={idx === filtered.length - 1}
+                            />
+                          </motion.div>
+                        ))
+                      )}
                     </div>
 
                     {/* Footer - AHORA SE ADAPTA EN MÓVILES (FLEX-WRAP) */}
@@ -393,13 +535,13 @@ export default function Home() {
                 <button onClick={exportToCSV}
                   className="flex-1 flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl text-sm font-bold transition-all shadow-sm"
                   style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
-                  <span>📥 Descargar CSV</span>
+                  <Download size={18} /> <span>Descargar CSV</span>
                 </button>
                 
                 <label 
                   className="flex-1 flex items-center justify-center gap-2 py-3.5 px-4 rounded-2xl text-sm font-bold transition-all cursor-pointer shadow-sm"
                   style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
-                  <span>📤 Subir CSV</span>
+                  <Upload size={18} /> <span>Subir CSV</span>
                   <input type="file" accept=".csv" className="hidden" onChange={handleImportCSV} />
                 </label>
               </div>
@@ -416,41 +558,85 @@ export default function Home() {
                 </button>
               )}
 
-            </div>
+            </motion.div>
           )}
 
-          {activeTab === 'stats' && <div className="animate-slide-up"><StatsPanel /></div>}
-          {activeTab === 'history' && <div className="animate-slide-up"><HistoryModal /></div>}
+          {activeTab === 'stats' && <motion.div key="stats" variants={tabVariants} initial="initial" animate="animate" exit="exit"><StatsPanel /></motion.div>}
+          {activeTab === 'history' && <motion.div key="history" variants={tabVariants} initial="initial" animate="animate" exit="exit"><HistoryModal /></motion.div>}
+          </AnimatePresence>
         </main>
 
+        {/* ── FAB ── */}
+        <AnimatePresence>
+          {activeTab === 'list' && !showAddForm && (
+            <motion.button
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0, opacity: 0 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setShowAddForm(true)}
+              className="fixed z-30 w-14 h-14 rounded-full flex items-center justify-center text-white shadow-2xl fab-pulse"
+              style={{
+                background: 'var(--accent)',
+                right: '16px',
+                bottom: 'calc(env(safe-area-inset-bottom, 0px) + 72px)',
+                minHeight: 'unset',
+              }}
+            >
+              <Plus size={26} strokeWidth={2.5} />
+            </motion.button>
+          )}
+        </AnimatePresence>
+
         {/* ── BOTTOM NAV ── */}
-        <nav className="fixed bottom-0 left-0 right-0 z-30 md:hidden"
-          style={{
-            background: isDark ? 'rgba(8,8,15,0.92)' : 'rgba(242,242,247,0.92)',
-            backdropFilter: 'blur(20px)',
-            borderTop: '1px solid var(--border)',
-            paddingBottom: 'env(safe-area-inset-bottom, 16px)' // Soporte crucial para el notch de iPhone
-          }}>
-          <div className="flex items-center justify-around px-2 pt-2 pb-1">
-            {tabs.map(tab => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className="flex flex-col items-center gap-1 w-16 py-2 rounded-xl transition-all relative"
-                style={{ color: activeTab === tab.id ? 'var(--accent)' : 'var(--text-tertiary)' }}>
-                <div className="relative">
-                  <span className="text-2xl">{tab.icon}</span>
-                  {tab.id === 'list' && pendingCount > 0 && (
-                    <span className="absolute -top-1 -right-2 text-white text-[10px] font-bold px-1.5 rounded-full min-w-[18px] text-center shadow-sm"
-                      style={{ background: 'var(--accent)' }}>
-                      {pendingCount}
-                    </span>
+        <nav className="fixed bottom-0 left-0 right-0 z-30 glass-premium"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom, 8px)' }}
+        >
+          <div className="flex items-center justify-around px-1 pt-1 pb-1">
+            {tabs.map(tab => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className="flex flex-col items-center gap-0.5 flex-1 py-2 rounded-xl transition-colors relative"
+                  style={{
+                    color: isActive ? 'var(--accent)' : 'var(--text-tertiary)',
+                    minHeight: 'unset',
+                  }}
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="tab-bg"
+                      className="absolute inset-0 rounded-xl"
+                      style={{ background: 'var(--accent-soft)' }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+                    />
                   )}
-                </div>
-                <span className="text-[10px] font-bold tracking-wide">{tab.label}</span>
-                {activeTab === tab.id && (
-                  <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full" style={{ background: 'var(--accent)' }} />
-                )}
-              </button>
-            ))}
+                  <div className="relative z-10">
+                    <motion.span
+                      className="flex items-center justify-center"
+                      animate={{ scale: isActive ? 1.1 : 1 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    >
+                      {tab.icon}
+                    </motion.span>
+                    {tab.id === 'list' && pendingCount > 0 && (
+                      <motion.span
+                        key={pendingCount}
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="absolute -top-1 -right-2 text-white text-[9px] font-bold px-1 rounded-full min-w-[14px] text-center"
+                        style={{ background: 'var(--accent)', minHeight: 'unset' }}
+                      >
+                        {pendingCount}
+                      </motion.span>
+                    )}
+                  </div>
+                  <span className="text-[9px] font-bold tracking-wide relative z-10">{tab.label}</span>
+                </button>
+              );
+            })}
           </div>
         </nav>
       </div>

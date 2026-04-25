@@ -3,6 +3,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useShoppingStore } from '../../store/useShoppingStore';
+import { Sun, Moon, Wallet } from 'lucide-react';
 
 interface BudgetWidgetProps {
   compact?: boolean;
@@ -49,7 +50,7 @@ export default function BudgetWidget({ compact = false, full = false }: BudgetWi
           className={`p-2 rounded-xl text-sm ${isDark ? 'bg-white/5 text-yellow-400' : 'bg-gray-100 text-gray-600'}`}
           title="Cambiar tema"
         >
-          {isDark ? '☀️' : '🌙'}
+          {isDark ? <Sun size={16} /> : <Moon size={16} />}
         </button>
       </div>
     );
@@ -61,7 +62,7 @@ export default function BudgetWidget({ compact = false, full = false }: BudgetWi
       <div className={`${isDark ? 'bg-[#13131A]' : 'bg-white'} rounded-2xl border ${isDark ? 'border-white/5' : 'border-gray-200'} p-4 space-y-3`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-base">💰</span>
+            <span className="text-[var(--text-secondary)]"><Wallet size={18} /></span>
             <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>Presupuesto</span>
           </div>
           <div className="flex items-center gap-3">

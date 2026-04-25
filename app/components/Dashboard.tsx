@@ -1,8 +1,10 @@
 // app/components/Dashboard.tsx
 "use client";
 
-import { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useShoppingStore } from '../../store/useShoppingStore';
+import { ShoppingCart, Sun, Moon, Palette, ChevronRight, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const ACCENT_OPTIONS = [
   { id: 'blue',   label: 'Azul',     hex: '#3B82F6' },
@@ -79,26 +81,33 @@ export default function Dashboard() {
             </h1>
             {totalBudget > 0 && (
               <p className="text-xs mt-1 opacity-50">
-                {isOver ? `⚠️ excedido del presupuesto` : `disponible de R$ ${totalBudget.toFixed(0)}`}
+                {isOver ? `Excedido del presupuesto` : `disponible de R$ ${totalBudget.toFixed(0)}`}
               </p>
             )}
 
-            {/* Mini stats row */}
+            {/* Mini stats row with animated counters */}
             <div className="flex items-center gap-4 mt-4">
-              <div>
-                <p className="text-2xl font-bold font-display leading-none">{pending}</p>
-                <p className="text-xs opacity-40 mt-0.5">pendientes</p>
-              </div>
-              <div className="w-px h-8 opacity-10" style={{ background: 'currentColor' }} />
-              <div>
-                <p className="text-2xl font-bold font-display leading-none">{purchased}</p>
-                <p className="text-xs opacity-40 mt-0.5">comprados</p>
-              </div>
-              <div className="w-px h-8 opacity-10" style={{ background: 'currentColor' }} />
-              <div>
-                <p className="text-2xl font-bold font-display leading-none">R${totalEstimated.toFixed(0)}</p>
-                <p className="text-xs opacity-40 mt-0.5">estimado</p>
-              </div>
+              {[
+                { value: pending, label: 'pendientes' },
+                { value: purchased, label: 'comprados' },
+                { value: `R$${totalEstimated.toFixed(0)}`, label: 'estimado' },
+              ].map((stat, i) => (
+                <React.Fragment key={stat.label}>
+                  {i > 0 && <div className="w-px h-8 opacity-10 flex-shrink-0" style={{ background: 'currentColor' }} />}
+                  <div>
+                    <motion.p
+                      key={String(stat.value)}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4 }}
+                      className="text-2xl font-bold font-display leading-none"
+                    >
+                      {stat.value}
+                    </motion.p>
+                    <p className="text-xs opacity-40 mt-0.5">{stat.label}</p>
+                  </div>
+                </React.Fragment>
+              ))}
             </div>
           </div>
 
@@ -138,11 +147,11 @@ export default function Dashboard() {
 
       {/* ── SHOPPING MODE BANNER ── */}
       {shoppingMode ? (
-        <div
-          className="relative overflow-hidden rounded-2xl p-4 flex items-center gap-4 animate-scale-in"
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+          className="relative overflow-hidden rounded-2xl p-4 flex items-center gap-4"
           style={{ background: 'var(--accent-soft)', border: '1px solid rgba(var(--accent-rgb), 0.25)' }}
         >
-          {/* Ping indicator */}
           <div className="relative flex-shrink-0">
             <div className="w-3 h-3 rounded-full" style={{ background: 'var(--accent)' }} />
             <div className="absolute inset-0 rounded-full shopping-active-ring" style={{ background: 'var(--accent)', opacity: 0.5 }} />
@@ -158,30 +167,26 @@ export default function Dashboard() {
           >
             Salir
           </button>
-        </div>
+        </motion.div>
       ) : (
-        <button
+        <motion.button
+          whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}
           onClick={toggleShoppingMode}
-          className="w-full relative overflow-hidden rounded-2xl p-4 flex items-center gap-3 card-hover transition-all"
-          style={{
-            background: isDark ? 'var(--bg-card)' : 'var(--bg-card)',
-            border: '1px solid var(--border)',
-          }}
+          className="w-full relative overflow-hidden rounded-2xl p-4 flex items-center gap-3 transition-all gradient-card"
+          style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
         >
           <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-[var(--accent)]"
             style={{ background: 'var(--accent-soft)' }}
           >
-            <span className="text-xl">🛒</span>
+            <ShoppingCart size={20} strokeWidth={2.5} />
           </div>
           <div className="text-left flex-1">
             <p className="text-sm font-semibold">Iniciar Modo Compras</p>
             <p className="text-xs opacity-40">Pantalla siempre encendida · tachado animado</p>
           </div>
-          <svg className="w-4 h-4 opacity-30 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
+          <ChevronRight size={16} className="opacity-30 flex-shrink-0" />
+        </motion.button>
       )}
 
       {/* ── CONTROLES DE TEMA ── */}
@@ -193,8 +198,8 @@ export default function Dashboard() {
           className="w-full flex items-center gap-3 px-4 py-3.5 transition-all"
           style={{ borderBottom: '1px solid var(--border)' }}
         >
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--bg-elevated)' }}>
-            <span className="text-lg">{isDark ? '☀️' : '🌙'}</span>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-[var(--text-secondary)]" style={{ background: 'var(--bg-elevated)' }}>
+            {isDark ? <Sun size={18} /> : <Moon size={18} />}
           </div>
           <span className="text-sm font-medium flex-1 text-left">
             {isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
@@ -211,45 +216,57 @@ export default function Dashboard() {
         </button>
 
         {/* Color acento */}
-        <button
+          <button
           onClick={() => setShowAccentPicker(!showAccentPicker)}
           className="w-full flex items-center gap-3 px-4 py-3.5 transition-all"
         >
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--bg-elevated)' }}>
-            <span className="text-lg">🎨</span>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-[var(--text-secondary)]" style={{ background: 'var(--bg-elevated)' }}>
+            <Palette size={18} />
           </div>
           <span className="text-sm font-medium flex-1 text-left">Color de acento</span>
           <div className="flex items-center gap-2">
             <div className="w-5 h-5 rounded-full" style={{ background: ACCENT_OPTIONS.find(a => a.id === accentColor)?.hex }} />
-            <svg className={`w-4 h-4 opacity-30 transition-transform ${showAccentPicker ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+            <motion.div animate={{ rotate: showAccentPicker ? 180 : 0 }} transition={{ duration: 0.25 }}>
+              <ChevronDown size={16} className="opacity-30" />
+            </motion.div>
           </div>
         </button>
 
         {/* Picker de colores */}
-        {showAccentPicker && (
-          <div className="px-4 pb-4 grid grid-cols-6 gap-2 animate-slide-up" style={{ borderTop: '1px solid var(--border)' }}>
-            {ACCENT_OPTIONS.map(opt => (
-              <button
-                key={opt.id}
-                onClick={() => { setAccentColor(opt.id); setShowAccentPicker(false); }}
-                className="flex flex-col items-center gap-1.5 pt-3"
-                title={opt.label}
-              >
-                <div
-                  className="w-8 h-8 rounded-full transition-all"
-                  style={{
-                    background: opt.hex,
-                    boxShadow: accentColor === opt.id ? `0 0 0 3px var(--bg-card), 0 0 0 5px ${opt.hex}` : 'none',
-                    transform: accentColor === opt.id ? 'scale(1.15)' : 'scale(1)',
-                  }}
-                />
-                <span className="text-[9px] opacity-50">{opt.label}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        <AnimatePresence>
+          {showAccentPicker && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.25 }}
+              className="px-4 pb-4 grid grid-cols-6 gap-2 overflow-hidden"
+              style={{ borderTop: '1px solid var(--border)' }}
+            >
+              {ACCENT_OPTIONS.map((opt, i) => (
+                <motion.button
+                  key={opt.id}
+                  initial={{ opacity: 0, scale: 0.7 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: i * 0.04 }}
+                  onClick={() => { setAccentColor(opt.id); setShowAccentPicker(false); }}
+                  className="flex flex-col items-center gap-1.5 pt-3"
+                  title={opt.label}
+                >
+                  <div
+                    className="w-8 h-8 rounded-full transition-all"
+                    style={{
+                      background: opt.hex,
+                      boxShadow: accentColor === opt.id ? `0 0 0 3px var(--bg-card), 0 0 0 5px ${opt.hex}` : 'none',
+                      transform: accentColor === opt.id ? 'scale(1.15)' : 'scale(1)',
+                    }}
+                  />
+                  <span className="text-[9px] opacity-50">{opt.label}</span>
+                </motion.button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

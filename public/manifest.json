@@ -1,15 +1,19 @@
 {
   "name": "Smart Shopping List",
   "short_name": "Compras",
-  "description": "Organiza tus compras del mes con IA",
+  "description": "Tu lista de compras inteligente",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#111111",
-  "theme_color": "#111111",
-  "orientation": "portrait",
+  "background_color": "#0D0D14",
+  "theme_color": "#0A84FF",
   "icons": [
     {
-      "src": "/icon.png",
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

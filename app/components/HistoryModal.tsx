@@ -3,6 +3,8 @@
 
 import { useState } from 'react';
 import { useShoppingStore } from '../../store/useShoppingStore';
+import { CalendarDays, Package, CheckSquare, Square, ChevronRight, BarChart3 as BarChartIcon } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip as RechartsTooltip, Cell } from 'recharts';
 
 export default function HistoryModal() {
   const { history, deleteHistory, closeMonth, items } = useShoppingStore();
@@ -74,7 +76,7 @@ export default function HistoryModal() {
               {selectedRecord.items.map(item => (
                 <div key={item.id} className="flex items-center justify-between py-1.5 px-3 bg-[var(--bg-elevated)] rounded-lg">
                   <div className="flex items-center gap-2">
-                    <span>{item.isPurchased ? '✅' : '⬜'}</span>
+                    <span className="text-[var(--accent)]">{item.isPurchased ? <CheckSquare size={16} /> : <Square size={16} />}</span>
                     <span className="text-sm text-[var(--text-primary)]">{item.name}</span>
                   </div>
                   <span className="text-xs text-[var(--text-secondary)]">R$ {(item.estimatedPrice * item.quantity).toFixed(2)}</span>
@@ -100,7 +102,9 @@ export default function HistoryModal() {
       {items.length > 0 && (
         <div className={`${cardCls} space-y-3`}>
           <div>
-            <h3 className="text-sm font-semibold text-[var(--text-primary)]">📦 Cerrar mes actual</h3>
+            <h3 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
+              <Package size={16} className="text-[var(--text-secondary)]" /> Cerrar mes actual
+            </h3>
             <p className="text-xs text-[var(--text-secondary)] mt-1">
               Guarda {items.length} productos en el historial y empieza un mes nuevo.
             </p>
@@ -133,12 +137,13 @@ export default function HistoryModal() {
 
       {/* History list */}
       {history.length === 0 ? (
-        <div className={`${cardCls} p-10 text-center`}>
-          <p className="text-4xl mb-3 opacity-20">📅</p>
+        <div className={`${cardCls} p-10 text-center flex flex-col items-center`}>
+          <CalendarDays size={40} className="mb-3 opacity-20 text-[var(--text-primary)]" />
           <p className="text-sm text-[var(--text-secondary)]">No hay historial aún</p>
           <p className="text-xs text-[var(--text-secondary)] mt-1">Cierra el mes actual para guardar un registro</p>
         </div>
       ) : (
+        <>
         <div className="space-y-2">
           <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">Meses anteriores</p>
           {history.map(record => {
@@ -151,8 +156,8 @@ export default function HistoryModal() {
                 onClick={() => setSelectedMonth(record.id)}
                 className={`w-full ${cardCls} flex items-center gap-4 hover:border-[var(--accent)] transition-all text-left group`}
               >
-                <div className="w-10 h-10 bg-[var(--bg-elevated)] rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
-                  <span>📅</span>
+                <div className="w-10 h-10 bg-[var(--bg-elevated)] rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform text-[var(--text-secondary)]">
+                  <CalendarDays size={20} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-[var(--text-primary)] capitalize">{record.month}</p>
@@ -164,14 +169,56 @@ export default function HistoryModal() {
                       {savingsRate >= 0 ? `+${savingsRate.toFixed(0)}%` : `${savingsRate.toFixed(0)}%`}
                     </span>
                   )}
-                  <svg className="w-4 h-4 text-[var(--text-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
+                  <ChevronRight size={16} className="text-[var(--text-secondary)]" />
                 </div>
               </button>
             );
           })}
         </div>
+
+        {/* Monthly Comparison Chart */}
+        {history.length >= 2 && (
+          <div className={`${cardCls}`}>
+            <h3 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2 mb-3">
+              <BarChartIcon size={16} className="text-[var(--text-secondary)]" /> Comparación mensual
+            </h3>
+            <div className="h-44 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={[...history].reverse().slice(-6).map(h => ({
+                  name: h.month.split(' ')[0]?.substring(0, 3) || h.month.substring(0, 3),
+                  gasto: h.totalSpent,
+                  presupuesto: h.totalBudget,
+                }))}
+                >
+                  <XAxis dataKey="name" tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: 'var(--text-tertiary)', fontSize: 10 }} axisLine={false} tickLine={false} width={45} tickFormatter={(v) => `R$${v}`} />
+                  <RechartsTooltip
+                    formatter={(value: number, name: string) => [`R$ ${value.toFixed(2)}`, name === 'gasto' ? 'Gastado' : 'Presupuesto']}
+                    contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '12px', color: 'var(--text-primary)' }}
+                    itemStyle={{ color: 'var(--text-primary)' }}
+                  />
+                  <Bar dataKey="presupuesto" fill="rgba(var(--accent-rgb), 0.2)" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="gasto" radius={[6, 6, 0, 0]}>
+                    {[...history].reverse().slice(-6).map((h, i) => (
+                      <Cell key={i} fill={h.totalSpent > h.totalBudget && h.totalBudget > 0 ? '#FF453A' : 'var(--accent)'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex items-center gap-4 mt-2 justify-center">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-sm" style={{ background: 'rgba(var(--accent-rgb), 0.2)' }} />
+                <span className="text-[10px] text-[var(--text-secondary)]">Presupuesto</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-sm" style={{ background: 'var(--accent)' }} />
+                <span className="text-[10px] text-[var(--text-secondary)]">Gastado</span>
+              </div>
+            </div>
+          </div>
+        )}
+        </>
       )}
     </div>
   );

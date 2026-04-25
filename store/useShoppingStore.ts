@@ -58,6 +58,7 @@ export interface ShoppingStore {
   toggleTheme: () => void;
   setAccentColor: (color: AccentColor) => void;
   toggleShoppingMode: () => void;
+  reorderItems: (oldIndex: number, newIndex: number) => void;
 
   getStats: () => {
     totalItems: number;
@@ -126,6 +127,13 @@ export const useShoppingStore = create<ShoppingStore>()(
       })),
 
       clearAll: () => set({ items: [] }),
+
+      reorderItems: (oldIndex, newIndex) => set((s) => {
+        const newItems = [...s.items];
+        const [movedItem] = newItems.splice(oldIndex, 1);
+        newItems.splice(newIndex, 0, movedItem);
+        return { items: newItems };
+      }),
 
       closeMonth: () => set((s) => {
         const totalSpent = s.items.reduce((acc, item) => {

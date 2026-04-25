@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useShoppingStore } from '../../store/useShoppingStore';
 import { getCategoryFromAI } from '../../actions/categorize';
 import { v4 as uuidv4 } from 'uuid';
+import { Pencil, Plus } from 'lucide-react';
 
 interface AddProductFormProps {
   onAdd?: () => void;
@@ -69,41 +70,40 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
   return (
     <form onSubmit={handleSubmit} className="bg-[var(--bg-card)] border border-[var(--border)] p-4 rounded-2xl space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
-          <span>✏️</span> Nuevo producto
+        <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2 font-display">
+          <Pencil size={15} className="text-[var(--accent)]" /> Nuevo producto
         </h3>
         <button
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className="text-xs text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors"
+          className="text-xs px-2 py-1 rounded-lg font-medium transition-colors"
+          style={{ color: 'var(--accent)', background: 'var(--accent-soft)', minHeight: 'unset' }}
         >
-          {showAdvanced ? "Menos opciones" : "Más opciones"}
+          {showAdvanced ? "Menos" : "Más opciones"}
         </button>
       </div>
 
-      {/* Row 1: Name */}
-      <div>
-        <input
-          type="text"
-          placeholder="Nombre del producto (ej. Leche, Arroz...)"
-          className={inputCls}
-          value={name}
-          onChange={e => setName(e.target.value)}
-          required
-          autoComplete="off"
-          list="product-history"
-        />
-        <datalist id="product-history">
-          {uniqueNames.map((n) => (
-            <option key={n} value={n} />
-          ))}
-        </datalist>
-      </div>
+      {/* Name */}
+      <input
+        type="text"
+        placeholder="Nombre del producto..."
+        className={inputCls}
+        value={name}
+        onChange={e => setName(e.target.value)}
+        required
+        autoComplete="off"
+        list="product-history"
+      />
+      <datalist id="product-history">
+        {uniqueNames.map((n) => (
+          <option key={n} value={n} />
+        ))}
+      </datalist>
 
-      {/* Row 2: Price + Qty */}
+      {/* Price + Qty */}
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-tertiary)]">R$</span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-tertiary)] font-medium">R$</span>
           <input
             type="number" step="0.01" min="0" placeholder="0,00"
             inputMode="decimal"
@@ -114,8 +114,9 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
           />
         </div>
         <input
-          type="number" min="1" placeholder="Cant"
-          className={`${smallInputCls} w-20 text-center`}
+          type="number" min="1" placeholder="×1"
+          inputMode="numeric"
+          className={`${smallInputCls} w-16 text-center px-2`}
           value={quantity}
           onChange={e => setQuantity(e.target.value)}
         />
@@ -123,7 +124,7 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
 
       {/* Advanced Options */}
       {showAdvanced && (
-        <div className="space-y-3 animate-slide-up">
+        <div className="space-y-2 animate-slide-up">
           <input
             type="text" placeholder="Tienda (opcional)"
             className={inputCls}
@@ -132,7 +133,7 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
           />
           <div className="flex gap-2">
             <input
-              type="text" placeholder="Nota (ej. marca específica...)"
+              type="text" placeholder="Nota (marca, variante...)"
               className={`${smallInputCls} flex-1 px-3`}
               value={note}
               onChange={e => setNote(e.target.value)}
@@ -142,9 +143,9 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
               onChange={e => setPriority(e.target.value as any)}
               className={`${smallInputCls} px-3 text-xs`}
             >
-              <option value="alta">🔴 Alta</option>
-              <option value="media">🟡 Media</option>
-              <option value="baja">🟢 Baja</option>
+              <option value="alta">Alta</option>
+              <option value="media">Media</option>
+              <option value="baja">Baja</option>
             </select>
           </div>
         </div>
@@ -154,10 +155,15 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
       <button
         type="submit"
         disabled={!name || !price}
-        className="w-full bg-[var(--accent)] hover:brightness-110 active:scale-[0.98] text-white font-semibold py-3 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm shadow-accent"
+        className="w-full text-white font-bold py-3.5 rounded-xl transition-all disabled:opacity-40 flex items-center justify-center gap-2 text-sm"
+        style={{
+          background: 'var(--accent)',
+          boxShadow: '0 4px 16px var(--accent-glow)',
+          minHeight: 'unset',
+        }}
       >
-        ✨ Agregar producto
+        <Plus size={18} /> Agregar producto
       </button>
     </form>
   );
-}
+}

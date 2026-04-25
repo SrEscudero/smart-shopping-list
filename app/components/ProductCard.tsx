@@ -1,10 +1,12 @@
 // app/components/ProductCard.tsx
 "use client";
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import { Product } from '../../store/useShoppingStore';
 import { CATEGORY_CONFIG, ALL_CATEGORIES } from '../../utils/constants';
 import { triggerHaptic } from '../../utils/haptic';
+import { Trash2, X } from 'lucide-react';
 
 function triggerConfetti(x: number, y: number) {
     const colors = ['#FF453A', '#30D158', '#FFD60A', '#0A84FF', '#BF5AF2', '#FF9F0A'];
@@ -42,7 +44,7 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
     const [editNote, setEditNote] = useState(item.note || '');
     const [editPriority, setEditPriority] = useState<'alta' | 'media' | 'baja'>(item.priority || 'media');
 
-    // Swipe to delete state
+    // Swipe to delete
     const [startX, setStartX] = useState<number | null>(null);
     const [offsetX, setOffsetX] = useState(0);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -51,9 +53,7 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
     const onTouchMove = (e: React.TouchEvent) => {
         if (startX !== null) {
             const diff = e.touches[0].clientX - startX;
-            if (diff < 0) {
-                setOffsetX(Math.max(diff, -100)); // Cap at -100px
-            }
+            if (diff < 0) setOffsetX(Math.max(diff, -100));
         }
     };
     const onTouchEnd = () => {
@@ -84,17 +84,25 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
     }, [item.isPurchased, item.id, onToggle]);
 
     const openEdit = () => {
-        setEditName(item.name); setEditPrice(item.estimatedPrice.toString());
-        setEditQty(item.quantity.toString()); setEditStore(item.store || '');
-        setEditCategory(item.category); setEditNote(item.note || '');
-        setEditPriority(item.priority || 'media'); setShowEdit(true);
+        setEditName(item.name);
+        setEditPrice(item.estimatedPrice.toString());
+        setEditQty(item.quantity.toString());
+        setEditStore(item.store || '');
+        setEditCategory(item.category);
+        setEditNote(item.note || '');
+        setEditPriority(item.priority || 'media');
+        setShowEdit(true);
     };
 
     const handleSave = () => {
         onUpdate(item.id, {
-            name: editName.trim() || item.name, estimatedPrice: parseFloat(editPrice) || item.estimatedPrice,
-            quantity: parseInt(editQty) || 1, store: editStore.trim() || 'Varias',
-            category: editCategory, note: editNote.trim() || undefined, priority: editPriority
+            name: editName.trim() || item.name,
+            estimatedPrice: parseFloat(editPrice) || item.estimatedPrice,
+            quantity: parseInt(editQty) || 1,
+            store: editStore.trim() || 'Varias',
+            category: editCategory,
+            note: editNote.trim() || undefined,
+            priority: editPriority,
         });
         setShowEdit(false);
     };
@@ -102,6 +110,7 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
     const inputCls = `w-full text-sm px-3 py-3 rounded-xl focus:outline-none transition-all ${isDark ? 'bg-white/5 text-white placeholder:text-gray-600' : 'bg-black/5 text-gray-900 placeholder:text-gray-400'}`;
     const lbl = `text-[10px] font-bold uppercase tracking-widest opacity-40`;
 
+    // ── SHOPPING MODE ──
     if (shoppingMode) {
         return (
             <button onClick={handleToggle}
@@ -109,13 +118,14 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
                 style={{
                     borderBottom: isLast ? 'none' : '1px solid var(--border)',
                     background: justToggled ? 'rgba(var(--accent-rgb), 0.08)' : 'transparent',
-                    opacity: item.isPurchased ? 0.4 : 1
+                    opacity: item.isPurchased ? 0.4 : 1,
+                    minHeight: 'unset',
                 }}>
                 <div className="w-10 h-10 rounded-2xl border-2 flex items-center justify-center flex-shrink-0 transition-all duration-300"
                     style={{
                         background: item.isPurchased ? 'var(--accent)' : 'transparent',
                         borderColor: item.isPurchased ? 'var(--accent)' : 'rgba(255,255,255,0.2)',
-                        boxShadow: item.isPurchased ? '0 0 12px var(--accent-glow)' : 'none'
+                        boxShadow: item.isPurchased ? '0 0 12px var(--accent-glow)' : 'none',
                     }}>
                     {item.isPurchased && (
                         <svg className="w-5 h-5 text-white animate-bounce-check" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -123,8 +133,7 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
                         </svg>
                     )}
                 </div>
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl"
-                    style={{ background: cfg.bg }}>{cfg.icon}</div>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl" style={{ background: cfg.bg }}>{cfg.icon}</div>
                 <div className="flex-1 min-w-0">
                     <div className="relative inline-block max-w-full">
                         <span className="font-semibold text-base leading-tight">{item.name}</span>
@@ -142,37 +151,41 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
         );
     }
 
+    // ── NORMAL CARD ──
     return (
-        <div className="relative overflow-hidden" style={{ transition: 'height 0.3s', height: isDeleting ? 0 : 'auto', opacity: isDeleting ? 0 : 1 }}>
-            {/* Delete background */}
-            <div className="absolute inset-y-0 right-0 w-full bg-red-500 flex items-center justify-end px-6 text-white" style={{ opacity: offsetX < -20 ? 1 : 0 }}>
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
+        <div className="relative overflow-hidden"
+            style={{ transition: 'height 0.3s, opacity 0.3s', height: isDeleting ? 0 : 'auto', opacity: isDeleting ? 0 : 1 }}>
+
+            {/* Swipe delete background */}
+            <div className="absolute inset-y-0 right-0 w-full bg-red-500 flex items-center justify-end px-6 text-white"
+                style={{ opacity: offsetX < -20 ? 1 : 0 }}>
+                <Trash2 size={22} />
             </div>
-            
-            <div 
-                className="relative flex items-center gap-3 px-2 py-4 transition-all duration-200"
-                style={{ 
-                    borderBottom: isLast ? 'none' : '1px solid var(--border)', 
+
+            <div
+                className="relative flex items-center gap-3 px-3 py-4 transition-all duration-200"
+                style={{
+                    borderBottom: isLast ? 'none' : '1px solid var(--border)',
                     opacity: item.isPurchased ? 0.5 : 1,
                     transform: `translateX(${offsetX}px)`,
-                    background: 'var(--bg-card)'
+                    background: 'var(--bg-card)',
                 }}
                 onTouchStart={onTouchStart}
                 onTouchMove={onTouchMove}
                 onTouchEnd={onTouchEnd}
             >
+                {/* Priority bar */}
                 <div className="absolute left-0 top-3 bottom-3 w-0.5 rounded-full" style={{ background: cfg.color }} />
-                
+
+                {/* Checkbox */}
                 <button onClick={handleToggle}
-                    className="w-11 h-11 flex items-center justify-center flex-shrink-0 transition-all"
-                    aria-label="Marcar producto"
-                >
+                    className="w-11 h-11 flex items-center justify-center flex-shrink-0"
+                    style={{ minHeight: 'unset' }}
+                    aria-label="Marcar producto">
                     <div className="w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all duration-200"
                         style={{
                             background: item.isPurchased ? 'var(--accent)' : 'transparent',
-                            borderColor: item.isPurchased ? 'var(--accent)' : 'rgba(255,255,255,0.2)'
+                            borderColor: item.isPurchased ? 'var(--accent)' : 'rgba(255,255,255,0.2)',
                         }}>
                         {item.isPurchased && (
                             <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -181,15 +194,19 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
                         )}
                     </div>
                 </button>
+
+                {/* Category icon */}
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-lg" style={{ background: cfg.bg }}>
                     {cfg.icon}
                 </div>
+
+                {/* Info */}
                 <div className="flex-1 min-w-0">
                     <p className={`font-semibold text-sm leading-snug ${item.isPurchased ? 'line-through' : ''}`}
                         style={{ color: item.isPurchased ? 'var(--text-tertiary)' : 'var(--text-primary)' }}>
                         {item.name}
                     </p>
-                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                         <span className="text-xs font-medium" style={{ color: cfg.color }}>{item.category}</span>
                         {item.store && item.store !== 'Varias' && (
                             <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>· {item.store}</span>
@@ -202,14 +219,18 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
                         )}
                     </div>
                 </div>
+
+                {/* Price */}
                 <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
                     <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>R${total.toFixed(2)}</span>
                     <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>×{item.quantity}</span>
                 </div>
+
+                {/* Edit button */}
                 <button onClick={openEdit}
-                    className="w-11 h-11 flex items-center justify-center flex-shrink-0 transition-all"
-                    aria-label="Editar producto"
-                >
+                    className="w-11 h-11 flex items-center justify-center flex-shrink-0"
+                    style={{ minHeight: 'unset' }}
+                    aria-label="Editar producto">
                     <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}>
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -218,116 +239,180 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
                 </button>
             </div>
 
-            {showEdit && (
-                <div className="fixed inset-0 z-50 flex flex-col justify-end">
-                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-fade-in" onClick={() => setShowEdit(false)} />
-                    <div className="relative z-10 w-full max-w-lg mx-auto rounded-t-3xl animate-slide-up overflow-hidden"
-                        style={{ background: isDark ? '#0D0D16' : '#FFFFFF', maxHeight: '90vh' }}>
-                        <div className="flex justify-center pt-3 pb-1">
-                            <div className="w-10 h-1 rounded-full" style={{ background: 'var(--border-hover)' }} />
+            {/* ── EDIT MODAL via Portal (escapes CSS transform context) ── */}
+            {showEdit && typeof window !== 'undefined' && ReactDOM.createPortal(
+                <div className="fixed inset-0 flex flex-col justify-end" style={{ zIndex: 9999, touchAction: 'none' }}>
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-black/60"
+                        style={{ backdropFilter: 'blur(4px)' }}
+                        onClick={() => setShowEdit(false)}
+                    />
+
+                    {/* Sheet */}
+                    <div className="relative w-full flex flex-col animate-slide-up"
+                        style={{
+                            background: isDark ? '#0D0D16' : '#FFFFFF',
+                            borderRadius: '20px 20px 0 0',
+                            maxHeight: '88svh',
+                            maxHeight: '88vh', /* fallback */
+                            zIndex: 1,
+                        }}>
+
+                        {/* Drag handle */}
+                        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
+                            <div className="w-10 h-1 rounded-full" style={{ background: 'rgba(128,128,128,0.3)' }} />
                         </div>
-                        <div className="px-5 py-3 flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style={{ background: editCfg.bg }}>
+
+                        {/* Header */}
+                        <div className="px-4 py-2 flex items-center gap-3 flex-shrink-0"
+                            style={{ borderBottom: '1px solid var(--border)' }}>
+                            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                                style={{ background: editCfg.bg }}>
                                 {editCfg.icon}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <h2 className="text-base font-bold font-display" style={{ color: 'var(--text-primary)' }}>Editar producto</h2>
-                                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{item.name}</p>
+                                <p className="text-sm font-bold font-display truncate" style={{ color: 'var(--text-primary)' }}>
+                                    {item.name}
+                                </p>
+                                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Editar producto</p>
                             </div>
                             <button onClick={() => setShowEdit(false)}
-                                className="w-8 h-8 rounded-xl flex items-center justify-center"
-                                style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}>
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                </svg>
+                                className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                                style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', minHeight: 'unset' }}>
+                                <X size={17} />
                             </button>
                         </div>
-                        <div className="px-5 pb-8 overflow-y-auto space-y-4" style={{ maxHeight: 'calc(90vh - 100px)' }}>
-                            <div className="space-y-1.5">
+
+                        {/* Scrollable fields */}
+                        <div className="overflow-y-auto flex-1 min-h-0 px-4 py-3 space-y-3">
+
+                            <div className="space-y-1">
                                 <label className={lbl}>Nombre</label>
-                                <input type="text" className={inputCls} value={editName} onChange={e => setEditName(e.target.value)} autoFocus />
+                                <input type="text" className={inputCls} value={editName}
+                                    onChange={e => setEditName(e.target.value)} />
                             </div>
+
                             <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1.5">
-                                    <label className={lbl}>Precio unitario</label>
+                                <div className="space-y-1">
+                                    <label className={lbl}>Precio unit.</label>
                                     <div className="relative">
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>R$</span>
-                                        <input type="number" step="0.01" min="0"
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-medium"
+                                            style={{ color: 'var(--text-secondary)' }}>R$</span>
+                                        <input type="number" step="0.01" min="0" inputMode="decimal"
                                             className={`w-full text-sm pl-8 pr-3 py-3 rounded-xl focus:outline-none ${isDark ? 'bg-white/5 text-white' : 'bg-black/5 text-gray-900'}`}
                                             value={editPrice} onChange={e => setEditPrice(e.target.value)} />
                                     </div>
                                 </div>
-                                <div className="space-y-1.5">
+                                <div className="space-y-1">
                                     <label className={lbl}>Cantidad</label>
-                                    <input type="number" min="1" className={`${inputCls} text-center`} value={editQty} onChange={e => setEditQty(e.target.value)} />
+                                    <input type="number" min="1" inputMode="numeric"
+                                        className={`${inputCls} text-center`}
+                                        value={editQty} onChange={e => setEditQty(e.target.value)} />
                                 </div>
                             </div>
+
                             {editPrice && editQty && (
-                                <div className="flex items-center justify-between px-4 py-3 rounded-xl animate-fade-in" style={{ background: 'var(--accent-soft)' }}>
-                                    <span className="text-sm" style={{ color: 'var(--accent)' }}>Total estimado</span>
-                                    <span className="text-base font-bold" style={{ color: 'var(--accent)' }}>R$ {liveTotal}</span>
+                                <div className="flex items-center justify-between px-3 py-2.5 rounded-xl"
+                                    style={{ background: 'var(--accent-soft)' }}>
+                                    <span className="text-sm" style={{ color: 'var(--accent)' }}>Total</span>
+                                    <span className="font-bold" style={{ color: 'var(--accent)' }}>R$ {liveTotal}</span>
                                 </div>
                             )}
-                            <div className="space-y-1.5">
+
+                            <div className="space-y-1">
                                 <label className={lbl}>Tienda</label>
-                                <input type="text" className={inputCls} value={editStore} onChange={e => setEditStore(e.target.value)} placeholder="Atacadão, Stok Center..." />
+                                <input type="text" className={inputCls} value={editStore}
+                                    onChange={e => setEditStore(e.target.value)}
+                                    placeholder="Atacadão, Stok Center..." />
                             </div>
-                            <div className="space-y-2">
+
+                            <div className="space-y-1.5">
                                 <label className={lbl}>Categoría</label>
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-2 gap-1.5">
                                     {ALL_CATEGORIES.map(cat => {
                                         const c = CATEGORY_CONFIG[cat] || CATEGORY_CONFIG['Otros'];
                                         const sel = editCategory === cat;
                                         return (
                                             <button key={cat} onClick={() => setEditCategory(cat)}
-                                                className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all"
-                                                style={{ background: sel ? c.bg : 'var(--bg-elevated)', border: `1px solid ${sel ? c.color + '40' : 'transparent'}` }}>
-                                                <span className="text-base flex-shrink-0">{c.icon}</span>
-                                                <span className="text-xs font-medium truncate" style={{ color: sel ? c.color : 'var(--text-secondary)' }}>{cat}</span>
-                                                {sel && <div className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: c.color }} />}
+                                                className="flex items-center gap-2 px-3 py-2 rounded-xl text-left transition-all"
+                                                style={{
+                                                    background: sel ? c.bg : 'var(--bg-elevated)',
+                                                    border: `1px solid ${sel ? c.color + '50' : 'transparent'}`,
+                                                    minHeight: 'unset',
+                                                }}>
+                                                <span className="flex-shrink-0 text-sm">{c.icon}</span>
+                                                <span className="text-xs font-medium truncate"
+                                                    style={{ color: sel ? c.color : 'var(--text-secondary)' }}>
+                                                    {cat}
+                                                </span>
                                             </button>
                                         );
                                     })}
                                 </div>
                             </div>
-                            <div className="space-y-1.5">
+
+                            <div className="space-y-1">
                                 <label className={lbl}>Nota (opcional)</label>
-                                <input type="text" className={inputCls} value={editNote} onChange={e => setEditNote(e.target.value)} placeholder="Marca, tamaño, variante..." />
+                                <input type="text" className={inputCls} value={editNote}
+                                    onChange={e => setEditNote(e.target.value)}
+                                    placeholder="Marca, tamaño, variante..." />
                             </div>
+
                             <div className="space-y-1.5">
                                 <label className={lbl}>Prioridad</label>
                                 <div className="grid grid-cols-3 gap-2">
-                                    {[
-                                        { id: 'alta' as const, label: '🔴 Alta', ab: 'rgba(255,69,58,0.15)', at: '#FF453A' },
-                                        { id: 'media' as const, label: '🟡 Media', ab: 'rgba(255,214,10,0.15)', at: '#FFD60A' },
-                                        { id: 'baja' as const, label: '🟢 Baja', ab: 'rgba(48,209,88,0.15)', at: '#30D158' },
-                                    ].map(p => (
+                                    {([
+                                        { id: 'alta' as const, label: 'Alta', bg: 'rgba(255,69,58,0.15)', color: '#FF453A' },
+                                        { id: 'media' as const, label: 'Media', bg: 'rgba(255,214,10,0.15)', color: '#FFD60A' },
+                                        { id: 'baja' as const, label: 'Baja', bg: 'rgba(48,209,88,0.15)', color: '#30D158' },
+                                    ]).map(p => (
                                         <button key={p.id} onClick={() => setEditPriority(p.id)}
                                             className="py-2.5 rounded-xl text-sm font-semibold transition-all"
                                             style={{
-                                                background: editPriority === p.id ? p.ab : 'var(--bg-elevated)',
-                                                color: editPriority === p.id ? p.at : 'var(--text-secondary)'
+                                                background: editPriority === p.id ? p.bg : 'var(--bg-elevated)',
+                                                color: editPriority === p.id ? p.color : 'var(--text-secondary)',
+                                                minHeight: 'unset',
                                             }}>
                                             {p.label}
                                         </button>
                                     ))}
                                 </div>
                             </div>
-                            <div className="flex gap-3 pt-1">
-                                <button onClick={() => { onRemove(item.id); setShowEdit(false); }}
-                                    className="px-4 py-3 rounded-2xl text-sm font-semibold text-red-400 transition-all"
-                                    style={{ background: 'rgba(255,69,58,0.12)', border: '1px solid rgba(255,69,58,0.2)' }}>
-                                    🗑 Eliminar
-                                </button>
-                                <button onClick={handleSave}
-                                    className="flex-1 py-3 rounded-2xl text-white font-bold text-sm transition-all"
-                                    style={{ background: 'var(--accent)', boxShadow: '0 4px 16px var(--accent-glow)' }}>
-                                    Guardar cambios
-                                </button>
-                            </div>
+                        </div>
+
+                        {/* Action footer */}
+                        <div className="flex gap-3 px-4 py-3 flex-shrink-0"
+                            style={{
+                                borderTop: '1px solid var(--border)',
+                                paddingBottom: 'max(env(safe-area-inset-bottom, 12px), 12px)',
+                            }}>
+                            <button
+                                onClick={() => { onRemove(item.id); setShowEdit(false); }}
+                                className="flex items-center gap-2 px-4 py-3.5 rounded-2xl text-sm font-semibold flex-shrink-0"
+                                style={{
+                                    background: 'rgba(255,69,58,0.12)',
+                                    border: '1px solid rgba(255,69,58,0.25)',
+                                    color: '#FF453A',
+                                    minHeight: 'unset',
+                                }}>
+                                <Trash2 size={15} />
+                                <span>Eliminar</span>
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                className="flex-1 py-3.5 rounded-2xl text-white font-bold text-sm"
+                                style={{
+                                    background: 'var(--accent)',
+                                    boxShadow: '0 4px 16px var(--accent-glow)',
+                                    minHeight: 'unset',
+                                }}>
+                                Guardar
+                            </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

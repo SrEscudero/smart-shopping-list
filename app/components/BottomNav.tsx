@@ -2,50 +2,73 @@
 "use client";
 
 import { useShoppingStore } from '../../store/useShoppingStore';
+import { ClipboardList, BarChart3, CalendarDays, Home } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface BottomNavProps {
-  activeTab: 'list' | 'stats' | 'history';
-  setActiveTab: (tab: 'list' | 'stats' | 'history') => void;
+  activeTab: 'list' | 'stats' | 'history' | 'home';
+  setActiveTab: (tab: 'home' | 'list' | 'stats' | 'history') => void;
   pendingCount: number;
 }
 
 export default function BottomNav({ activeTab, setActiveTab, pendingCount }: BottomNavProps) {
   const theme = useShoppingStore(s => s.theme);
-  const isDark = theme === 'dark';
 
   const tabs = [
-    { id: 'list' as const, label: 'Lista', icon: '📋' },
-    { id: 'stats' as const, label: 'Stats', icon: '📊' },
-    { id: 'history' as const, label: 'Historial', icon: '📅' },
+    { id: 'home' as const, label: 'Inicio', icon: <Home size={22} /> },
+    { id: 'list' as const, label: 'Lista', icon: <ClipboardList size={22} /> },
+    { id: 'stats' as const, label: 'Stats', icon: <BarChart3 size={22} /> },
+    { id: 'history' as const, label: 'Historial', icon: <CalendarDays size={22} /> },
   ];
 
   return (
-    <div className={`fixed bottom-0 left-0 right-0 z-50 ${isDark ? 'bg-[#0A0A0F]/95 border-white/5' : 'bg-white/95 border-gray-200'} backdrop-blur-xl border-t md:hidden`}>
-      <div className="flex items-center justify-around px-4 py-2 pb-safe">
-        {tabs.map(tab => (
+    <div className="flex items-center justify-around px-2 pt-2 pb-1">
+      {tabs.map(tab => {
+        const isActive = activeTab === tab.id;
+        return (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex flex-col items-center gap-1 px-6 py-2 rounded-xl transition-all ${
-              activeTab === tab.id
-                ? 'text-blue-500'
-                : isDark ? 'text-gray-600' : 'text-gray-400'
-            }`}
+            className="flex flex-col items-center gap-1 w-16 py-1 rounded-xl transition-colors relative"
+            style={{ color: isActive ? 'var(--accent)' : 'var(--text-tertiary)' }}
           >
-            <div className="relative">
-              <span className="text-xl">{tab.icon}</span>
+            {isActive && (
+              <motion.div
+                layoutId="nav-active-bg"
+                className="absolute inset-0 rounded-xl"
+                style={{ background: 'var(--accent-soft)' }}
+                transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+              />
+            )}
+
+            <div className="relative z-10">
+              <motion.span
+                className="flex items-center justify-center"
+                animate={{ scale: isActive ? 1.1 : 1 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              >
+                {tab.icon}
+              </motion.span>
+
               {tab.id === 'list' && pendingCount > 0 && (
-                <span className="absolute -top-1 -right-2 bg-blue-500 text-white text-[9px] font-bold px-1 py-0 rounded-full min-w-[14px] text-center">
+                <motion.span
+                  key={pendingCount}
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="absolute -top-1 -right-2 text-white text-[9px] font-bold px-1.5 rounded-full min-w-[16px] text-center"
+                  style={{ background: 'var(--accent)' }}
+                >
                   {pendingCount}
-                </span>
+                </motion.span>
               )}
             </div>
-            <span className={`text-[10px] font-semibold ${activeTab === tab.id ? 'text-blue-500' : isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+
+            <span className="text-[10px] font-bold tracking-wide relative z-10">
               {tab.label}
             </span>
           </button>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }
