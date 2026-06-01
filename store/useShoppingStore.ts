@@ -55,6 +55,7 @@ export interface ShoppingStore {
   clearAll: () => void;
   closeMonth: () => void;
   deleteHistory: (id: string) => void;
+  renameHistoryMonth: (id: string, newName: string) => void;
   toggleTheme: () => void;
   setAccentColor: (color: AccentColor) => void;
   toggleShoppingMode: () => void;
@@ -159,6 +160,10 @@ export const useShoppingStore = create<ShoppingStore>()(
 
       deleteHistory: (id) => set((s) => ({
         history: s.history.filter(h => h.id !== id)
+      })),
+
+      renameHistoryMonth: (id, newName) => set((s) => ({
+        history: s.history.map(h => h.id === id ? { ...h, month: newName } : h)
       })),
 
       getStats: () => {
