@@ -4,9 +4,10 @@
 import React, { useState, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { Product } from '../../store/useShoppingStore';
+import { useShoppingStore } from '../../store/useShoppingStore';
 import { CATEGORY_CONFIG, ALL_CATEGORIES } from '../../utils/constants';
 import { triggerHaptic } from '../../utils/haptic';
-import { Trash2, X } from 'lucide-react';
+import { Trash2, X, RefreshCw } from 'lucide-react';
 
 function triggerConfetti(x: number, y: number) {
     const colors = ['#FF453A', '#30D158', '#FFD60A', '#0A84FF', '#BF5AF2', '#FF9F0A'];
@@ -34,6 +35,8 @@ interface Props {
 }
 
 const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, onUpdate, isDark, shoppingMode = false, isLast = false }: Props) {
+    const { currency, toggleRecurring } = useShoppingStore();
+    const cur = currency || 'R$';
     const [showEdit, setShowEdit] = useState(false);
     const [justToggled, setJustToggled] = useState(false);
     const [editName, setEditName] = useState(item.name);
@@ -145,7 +148,7 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
                     <p className="text-xs opacity-40 mt-0.5">×{item.quantity} · {item.category}</p>
                 </div>
                 <p className="font-bold text-base flex-shrink-0" style={{ opacity: item.isPurchased ? 0.4 : 1 }}>
-                    R${total.toFixed(2)}
+                    {cur}{total.toFixed(2)}
                 </p>
             </button>
         );
@@ -222,7 +225,7 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
 
                 {/* Price */}
                 <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-                    <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>R${total.toFixed(2)}</span>
+                    <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{cur}{total.toFixed(2)}</span>
                     <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>×{item.quantity}</span>
                 </div>
 
@@ -297,7 +300,7 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
                                     <label className={lbl}>Precio unit.</label>
                                     <div className="relative">
                                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-medium"
-                                            style={{ color: 'var(--text-secondary)' }}>R$</span>
+                                            style={{ color: 'var(--text-secondary)' }}>{cur}</span>
                                         <input type="number" step="0.01" min="0" inputMode="decimal"
                                             className={`w-full text-sm pl-8 pr-3 py-3 rounded-xl focus:outline-none ${isDark ? 'bg-white/5 text-white' : 'bg-black/5 text-gray-900'}`}
                                             value={editPrice} onChange={e => setEditPrice(e.target.value)} />
@@ -315,7 +318,7 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
                                 <div className="flex items-center justify-between px-3 py-2.5 rounded-xl"
                                     style={{ background: 'var(--accent-soft)' }}>
                                     <span className="text-sm" style={{ color: 'var(--accent)' }}>Total</span>
-                                    <span className="font-bold" style={{ color: 'var(--accent)' }}>R$ {liveTotal}</span>
+                                    <span className="font-bold" style={{ color: 'var(--accent)' }}>{cur} {liveTotal}</span>
                                 </div>
                             )}
 
@@ -330,19 +333,19 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
                                 <label className={lbl}>Categoría</label>
                                 <div className="grid grid-cols-2 gap-1.5">
                                     {ALL_CATEGORIES.map(cat => {
-                                        const c = CATEGORY_CONFIG[cat] || CATEGORY_CONFIG['Otros'];
+                                        const catCfg = CATEGORY_CONFIG[cat] || CATEGORY_CONFIG['Otros'];
                                         const sel = editCategory === cat;
                                         return (
                                             <button key={cat} onClick={() => setEditCategory(cat)}
                                                 className="flex items-center gap-2 px-3 py-2 rounded-xl text-left transition-all"
                                                 style={{
-                                                    background: sel ? c.bg : 'var(--bg-elevated)',
-                                                    border: `1px solid ${sel ? c.color + '50' : 'transparent'}`,
+                                                    background: sel ? catCfg.bg : 'var(--bg-elevated)',
+                                                    border: `1px solid ${sel ? catCfg.color + '50' : 'transparent'}`,
                                                     minHeight: 'unset',
                                                 }}>
-                                                <span className="flex-shrink-0 text-sm">{c.icon}</span>
+                                                <span className="flex-shrink-0 text-sm">{catCfg.icon}</span>
                                                 <span className="text-xs font-medium truncate"
-                                                    style={{ color: sel ? c.color : 'var(--text-secondary)' }}>
+                                                    style={{ color: sel ? catCfg.color : 'var(--text-secondary)' }}>
                                                     {cat}
                                                 </span>
                                             </button>
@@ -378,6 +381,26 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
                                     ))}
                                 </div>
                             </div>
+
+                            {/* Recurring toggle */}
+                            <button
+                                onClick={() => toggleRecurring(item.id)}
+                                className="w-full flex items-center justify-between px-3 py-3 rounded-xl transition-all"
+                                style={{
+                                    background: item.isRecurring ? 'var(--accent-soft)' : 'var(--bg-elevated)',
+                                    border: item.isRecurring ? '1px solid rgba(var(--accent-rgb), 0.3)' : '1px solid transparent',
+                                    minHeight: 'unset',
+                                }}>
+                                <div className="flex items-center gap-2">
+                                    <RefreshCw size={14} style={{ color: item.isRecurring ? 'var(--accent)' : 'var(--text-tertiary)' }} />
+                                    <span className="text-sm font-medium" style={{ color: item.isRecurring ? 'var(--accent)' : 'var(--text-secondary)' }}>
+                                        Producto recurrente
+                                    </span>
+                                </div>
+                                <span className="text-[10px] font-bold" style={{ color: item.isRecurring ? 'var(--accent)' : 'var(--text-tertiary)' }}>
+                                    {item.isRecurring ? 'ON' : 'OFF'}
+                                </span>
+                            </button>
                         </div>
 
                         {/* Action footer */}

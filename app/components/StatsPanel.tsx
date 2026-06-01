@@ -8,7 +8,8 @@ import { CircleDollarSign, ShoppingCart, CheckCircle2, TrendingUp, BarChart3, St
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 
 export default function StatsPanel() {
-  const { items, totalBudget } = useShoppingStore();
+  const { items, totalBudget, currency } = useShoppingStore();
+  const c = currency || 'R$';
 
   const stats = useMemo(() => {
     const total = items.reduce((a, i) => a + i.estimatedPrice * i.quantity, 0);
@@ -41,8 +42,8 @@ export default function StatsPanel() {
       {/* Summary Cards */}
       <div className="grid grid-cols-2 gap-3">
         {[
-          { label: 'Total estimado', value: `R$ ${stats.total.toFixed(2)}`, icon: <CircleDollarSign size={18} />, color: 'text-blue-400' },
-          { label: 'Ya gastado', value: `R$ ${stats.spent.toFixed(2)}`, icon: <ShoppingCart size={18} />, color: 'text-green-400' },
+          { label: 'Total estimado', value: `${c} ${stats.total.toFixed(2)}`, icon: <CircleDollarSign size={18} />, color: 'text-blue-400' },
+          { label: 'Ya gastado', value: `${c} ${stats.spent.toFixed(2)}`, icon: <ShoppingCart size={18} />, color: 'text-green-400' },
           { label: 'Items comprados', value: `${stats.purchased}/${items.length}`, icon: <CheckCircle2 size={18} />, color: 'text-purple-400' },
           { label: 'Completado', value: `${stats.rate.toFixed(0)}%`, icon: <TrendingUp size={18} />, color: 'text-orange-400' },
         ].map(card => (
@@ -82,7 +83,7 @@ export default function StatsPanel() {
             {totalBudget > 0 && (
               <p className={`text-xs mt-1 ${stats.total > totalBudget ? 'text-red-400' : 'text-green-400'}`}>
                 {stats.total > totalBudget
-                  ? `Excede en R$ ${(stats.total - totalBudget).toFixed(2)}`
+                  ? `Excede en ${c} ${(stats.total - totalBudget).toFixed(2)}`
                   : `Dentro del presupuesto`}
               </p>
             )}
@@ -108,7 +109,7 @@ export default function StatsPanel() {
                   ))}
                 </Pie>
                 <RechartsTooltip 
-                  formatter={(value: any) => `R$ ${Number(value).toFixed(2)}`}
+                  formatter={(value: any) => `${c} ${Number(value).toFixed(2)}`}
                   contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '12px', color: 'var(--text-primary)' }}
                   itemStyle={{ color: 'var(--text-primary)' }}
                 />
@@ -120,7 +121,7 @@ export default function StatsPanel() {
               <div key={cat} className="flex items-center gap-2">
                 <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: CATEGORY_CONFIG[cat]?.color || '#8E8E93' }} />
                 <span className="text-xs text-[var(--text-secondary)] truncate flex-1">{cat}</span>
-                <span className="text-xs font-semibold text-[var(--text-primary)]">R${amount.toFixed(0)}</span>
+                <span className="text-xs font-semibold text-[var(--text-primary)]">{c}{amount.toFixed(0)}</span>
               </div>
             ))}
           </div>
@@ -141,7 +142,7 @@ export default function StatsPanel() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-medium text-[var(--text-primary)] truncate">{store}</span>
-                  <span className="text-xs text-[var(--text-secondary)] ml-2 flex-shrink-0">R$ {amount.toFixed(2)}</span>
+                  <span className="text-xs text-[var(--text-secondary)] ml-2 flex-shrink-0">{c} {amount.toFixed(2)}</span>
                 </div>
                 <div className="w-full h-1 bg-[var(--bg-input)] rounded-full overflow-hidden">
                   <div

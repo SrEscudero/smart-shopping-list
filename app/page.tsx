@@ -39,8 +39,9 @@ export default function Home() {
   const {
     month, items, toggleProduct, removeProduct, updateProduct,
     clearPurchased, theme, shoppingMode, toggleShoppingMode,
-    addMultipleProducts
+    addMultipleProducts, currency, toggleRecurring
   } = useShoppingStore();
+  const c = currency || 'R$';
 
   const [filter, setFilter] = useState<'all' | 'pending' | 'purchased'>('all');
   const [activeTab, setActiveTab] = useState<'home' | 'list' | 'stats' | 'history'>('home');
@@ -124,10 +125,10 @@ export default function Home() {
     let msg = `🛒 *Lista — ${month}*\n\n`;
     for (const [store, si] of Object.entries(grouped)) {
       msg += `🏪 *${store}*\n`;
-      si.forEach(i => { msg += `  • ${i.name} ×${i.quantity} — R$ ${(i.estimatedPrice * i.quantity).toFixed(2)}\n`; });
+      si.forEach(i => { msg += `  • ${i.name} ×${i.quantity} — ${c} ${(i.estimatedPrice * i.quantity).toFixed(2)}\n`; });
       msg += '\n';
     }
-    msg += `💰 *Total: R$ ${pend.reduce((a, i) => a + i.estimatedPrice * i.quantity, 0).toFixed(2)}*`;
+    msg += `💰 *Total: ${c} ${pend.reduce((a, i) => a + i.estimatedPrice * i.quantity, 0).toFixed(2)}*`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
@@ -523,7 +524,7 @@ export default function Home() {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-semibold" style={{ color: 'var(--text-tertiary)' }}>Total:</span>
-                        <span className="text-base font-bold font-display" style={{ color: 'var(--accent)' }}>R$ {totalSum.toFixed(2)}</span>
+                        <span className="text-base font-bold font-display" style={{ color: 'var(--accent)' }}>{c} {totalSum.toFixed(2)}</span>
                       </div>
                     </div>
                   </>

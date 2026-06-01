@@ -10,6 +10,8 @@ export type BaseCategory =
   | 'Electrónica' | 'Ropa' | 'Otros';
 
 export type AccentColor = 'blue' | 'green' | 'orange' | 'pink' | 'purple' | 'teal';
+export type ListDensity = 'compact' | 'normal' | 'spacious';
+export type CurrencySymbol = 'R$' | '$' | '€' | '£' | '¥' | 'CLP' | 'ARS' | 'COP' | 'MXN' | 'PEN' | 'UYU';
 
 export interface Product {
   id: string;
@@ -22,6 +24,7 @@ export interface Product {
   store: string;
   note?: string;
   priority?: 'alta' | 'media' | 'baja';
+  isRecurring?: boolean;
   addedAt: number;
 }
 
@@ -43,14 +46,20 @@ export interface ShoppingStore {
   accentColor: AccentColor;
   shoppingMode: boolean;
   history: MonthHistory[];
+  currency: CurrencySymbol;
+  listDensity: ListDensity;
 
   setBudget: (amount: number) => void;
+  setMonth: (name: string) => void;
+  setCurrency: (currency: CurrencySymbol) => void;
+  setListDensity: (density: ListDensity) => void;
   addProduct: (product: Omit<Product, 'id' | 'isPurchased' | 'addedAt'> & { id?: string }) => void;
   // NUEVO: Función para agregar múltiples productos a la vez (ideal para importaciones CSV)
   addMultipleProducts: (products: Omit<Product, 'id' | 'isPurchased' | 'addedAt'>[]) => void;
   toggleProduct: (id: string, finalPrice?: number) => void;
   removeProduct: (id: string) => void;
   updateProduct: (id: string, updatedProduct: Partial<Product>) => void;
+  toggleRecurring: (id: string) => void;
   clearPurchased: () => void;
   clearAll: () => void;
   closeMonth: () => void;
@@ -85,8 +94,13 @@ export const useShoppingStore = create<ShoppingStore>()(
       accentColor: 'blue',
       shoppingMode: false,
       history: [],
+      currency: 'R$',
+      listDensity: 'normal',
 
       setBudget: (amount) => set({ totalBudget: amount }),
+      setMonth: (name) => set({ month: name }),
+      setCurrency: (currency) => set({ currency }),
+      setListDensity: (density) => set({ listDensity: density }),
       toggleTheme: () => set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
       setAccentColor: (color) => set({ accentColor: color }),
       toggleShoppingMode: () => set((s) => ({ shoppingMode: !s.shoppingMode })),
@@ -123,6 +137,10 @@ export const useShoppingStore = create<ShoppingStore>()(
         items: s.items.map(item => item.id === id ? { ...item, ...updated } : item)
       })),
 
+      toggleRecurring: (id) => set((s) => ({
+        items: s.items.map(item => item.id === id ? { ...item, isRecurring: !item.isRecurring } : item)
+      })),
+
       clearPurchased: () => set((s) => ({
         items: s.items.filter(item => !item.isPurchased)
       })),
@@ -149,9 +167,20 @@ export const useShoppingStore = create<ShoppingStore>()(
           closedAt: Date.now(),
           totalSpent,
         };
+        // Carry over recurring items to the new month
+        const now = Date.now();
+        const recurringItems: Product[] = s.items
+          .filter(item => item.isRecurring)
+          .map((item, idx) => ({
+            ...item,
+            id: uuidv4(),
+            isPurchased: false,
+            finalPrice: undefined,
+            addedAt: now + idx,
+          }));
         return {
           history: [record, ...s.history],
-          items: [],
+          items: recurringItems,
           totalBudget: 0,
           shoppingMode: false,
           month: new Date().toLocaleString('pt-BR', { month: 'long', year: 'numeric' }),

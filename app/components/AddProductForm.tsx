@@ -12,7 +12,8 @@ interface AddProductFormProps {
 }
 
 export default function AddProductForm({ onAdd }: AddProductFormProps) {
-  const { addProduct, updateProduct, items } = useShoppingStore();
+  const { addProduct, updateProduct, items, currency } = useShoppingStore();
+  const c = currency || 'R$';
 
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
@@ -103,7 +104,7 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
       {/* Price + Qty */}
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-tertiary)] font-medium">R$</span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-tertiary)] font-medium">{c}</span>
           <input
             type="number" step="0.01" min="0" placeholder="0,00"
             inputMode="decimal"

@@ -11,7 +11,8 @@ interface BudgetWidgetProps {
 }
 
 export default function BudgetWidget({ compact = false, full = false }: BudgetWidgetProps) {
-  const { totalBudget, setBudget, items, theme, toggleTheme } = useShoppingStore();
+  const { totalBudget, setBudget, items, theme, toggleTheme, currency } = useShoppingStore();
+  const c = currency || 'R$';
   const [isEditing, setIsEditing] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -41,7 +42,7 @@ export default function BudgetWidget({ compact = false, full = false }: BudgetWi
         {totalBudget > 0 && (
           <div className={`flex flex-col items-end`}>
             <span className={`text-xs font-medium ${isOver ? 'text-red-400' : 'text-green-400'}`}>
-              {isOver ? '−' : '+'}R$ {Math.abs(remaining).toFixed(0)}
+              {isOver ? '−' : '+'}{c} {Math.abs(remaining).toFixed(0)}
             </span>
           </div>
         )}
@@ -77,7 +78,7 @@ export default function BudgetWidget({ compact = false, full = false }: BudgetWi
 
         {isEditing ? (
           <div className="flex items-center gap-2">
-            <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>R$</span>
+            <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{c}</span>
             <input
               ref={inputRef}
               type="number"
@@ -97,13 +98,13 @@ export default function BudgetWidget({ compact = false, full = false }: BudgetWi
             <div className={`${isDark ? 'bg-white/5' : 'bg-gray-50'} rounded-xl p-3`}>
               <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'} mb-1`}>Presupuesto</p>
               <p className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                R$ {totalBudget > 0 ? totalBudget.toFixed(0) : '—'}
+                {c} {totalBudget > 0 ? totalBudget.toFixed(0) : '—'}
               </p>
             </div>
             <div className={`${isDark ? 'bg-white/5' : 'bg-gray-50'} rounded-xl p-3`}>
               <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'} mb-1`}>Estimado</p>
               <p className={`text-base font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
-                R$ {totalEstimated.toFixed(0)}
+                {c} {totalEstimated.toFixed(0)}
               </p>
             </div>
             <div className={`${isOver ? 'bg-red-500/10' : isDark ? 'bg-green-500/10' : 'bg-green-50'} rounded-xl p-3`}>
@@ -111,7 +112,7 @@ export default function BudgetWidget({ compact = false, full = false }: BudgetWi
                 {isOver ? 'Excedido' : 'Disponible'}
               </p>
               <p className={`text-base font-bold ${isOver ? 'text-red-400' : isDark ? 'text-green-400' : 'text-green-600'}`}>
-                {totalBudget > 0 ? `R$ ${Math.abs(remaining).toFixed(0)}` : '—'}
+                {totalBudget > 0 ? `${c} ${Math.abs(remaining).toFixed(0)}` : '—'}
               </p>
             </div>
           </div>
@@ -128,7 +129,7 @@ export default function BudgetWidget({ compact = false, full = false }: BudgetWi
             </div>
             <div className={`flex justify-between mt-1 text-xs ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
               <span>{progress.toFixed(0)}% usado</span>
-              <span>R$ {totalSpent.toFixed(2)} gastado</span>
+              <span>{c} {totalSpent.toFixed(2)} gastado</span>
             </div>
           </div>
         )}

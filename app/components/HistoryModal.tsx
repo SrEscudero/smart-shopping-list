@@ -13,7 +13,8 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip as RechartsTo
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function HistoryModal() {
-  const { history, deleteHistory, closeMonth, items, renameHistoryMonth } = useShoppingStore();
+  const { history, deleteHistory, closeMonth, items, renameHistoryMonth, currency } = useShoppingStore();
+  const c = currency || 'R$';
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -104,14 +105,14 @@ export default function HistoryModal() {
                 <DollarSign size={13} />
                 <span className="text-[11px] uppercase tracking-wider font-semibold">Presupuesto</span>
               </div>
-              <p className="text-lg font-bold text-[var(--text-primary)]">R$ {selectedRecord.totalBudget.toFixed(0)}</p>
+              <p className="text-lg font-bold text-[var(--text-primary)]">{c} {selectedRecord.totalBudget.toFixed(0)}</p>
             </div>
             <div className="bg-[var(--bg-elevated)] rounded-xl p-3.5 space-y-1">
               <div className="flex items-center gap-1.5 text-blue-400">
                 <ShoppingCart size={13} />
                 <span className="text-[11px] uppercase tracking-wider font-semibold">Gastado</span>
               </div>
-              <p className="text-lg font-bold text-blue-400">R$ {selectedRecord.totalSpent.toFixed(0)}</p>
+              <p className="text-lg font-bold text-blue-400">{c} {selectedRecord.totalSpent.toFixed(0)}</p>
             </div>
             <div className={`rounded-xl p-3.5 space-y-1 ${overBudget ? 'bg-red-500/8' : 'bg-green-500/8'}`}>
               <div className={`flex items-center gap-1.5 ${overBudget ? 'text-red-400' : 'text-green-400'}`}>
@@ -119,7 +120,7 @@ export default function HistoryModal() {
                 <span className="text-[11px] uppercase tracking-wider font-semibold">{overBudget ? 'Exceso' : 'Ahorro'}</span>
               </div>
               <p className={`text-lg font-bold ${overBudget ? 'text-red-400' : 'text-green-400'}`}>
-                R$ {Math.abs(savings).toFixed(0)}
+                {c} {Math.abs(savings).toFixed(0)}
               </p>
             </div>
             <div className="bg-[var(--bg-elevated)] rounded-xl p-3.5 space-y-1">
@@ -165,7 +166,7 @@ export default function HistoryModal() {
                   <div key={cat}>
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-[var(--text-primary)]">{cat}</span>
-                      <span className="text-[var(--text-secondary)] tabular-nums">R$ {amount.toFixed(2)}</span>
+                      <span className="text-[var(--text-secondary)] tabular-nums">{c} {amount.toFixed(2)}</span>
                     </div>
                     <div className="h-1.5 bg-[var(--bg-elevated)] rounded-full overflow-hidden">
                       <motion.div
@@ -209,7 +210,7 @@ export default function HistoryModal() {
                   </div>
                 </div>
                 <span className="text-xs font-medium text-[var(--text-secondary)] ml-2 tabular-nums">
-                  R$ {(item.estimatedPrice * item.quantity).toFixed(2)}
+                  {c} {(item.estimatedPrice * item.quantity).toFixed(2)}
                 </span>
               </motion.div>
             ))}
@@ -338,13 +339,13 @@ export default function HistoryModal() {
               <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-3 text-center">
                 <p className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Total</p>
                 <p className="text-lg font-bold text-[var(--accent)]">
-                  R$ {history.reduce((s, h) => s + h.totalSpent, 0).toFixed(0)}
+                  {c} {history.reduce((s, h) => s + h.totalSpent, 0).toFixed(0)}
                 </p>
               </div>
               <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded-xl p-3 text-center">
                 <p className="text-[10px] text-[var(--text-tertiary)] uppercase tracking-wider">Promedio</p>
                 <p className="text-lg font-bold text-[var(--text-primary)]">
-                  R$ {(history.reduce((s, h) => s + h.totalSpent, 0) / history.length).toFixed(0)}
+                  {c} {(history.reduce((s, h) => s + h.totalSpent, 0) / history.length).toFixed(0)}
                 </p>
               </div>
             </div>
@@ -405,7 +406,7 @@ export default function HistoryModal() {
                           </div>
                         )}
                         <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                          {record.items.length} items · R$ {record.totalSpent.toFixed(2)}
+                          {record.items.length} items · {c} {record.totalSpent.toFixed(2)}
                         </p>
                       </div>
 
@@ -464,9 +465,9 @@ export default function HistoryModal() {
                     presupuesto: h.totalBudget,
                   }))}>
                     <XAxis dataKey="name" tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fill: 'var(--text-tertiary)', fontSize: 10 }} axisLine={false} tickLine={false} width={45} tickFormatter={(v) => `R$${v}`} />
+                    <YAxis tick={{ fill: 'var(--text-tertiary)', fontSize: 10 }} axisLine={false} tickLine={false} width={45} tickFormatter={(v) => `${c}${v}`} />
                     <RechartsTooltip
-                      formatter={(value: any, name: any) => [`R$ ${Number(value).toFixed(2)}`, name === 'gasto' ? 'Gastado' : 'Presupuesto']}
+                      formatter={(value: any, name: any) => [`${c} ${Number(value).toFixed(2)}`, name === 'gasto' ? 'Gastado' : 'Presupuesto']}
                       contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '12px', color: 'var(--text-primary)' }}
                       itemStyle={{ color: 'var(--text-primary)' }}
                     />

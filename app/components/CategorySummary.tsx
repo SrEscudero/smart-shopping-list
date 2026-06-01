@@ -5,7 +5,8 @@ import { useShoppingStore } from '../../store/useShoppingStore';
 import { CATEGORY_CONFIG } from '../../utils/constants';
 
 export default function CategorySummary() {
-  const { items, theme } = useShoppingStore();
+  const { items, theme, currency } = useShoppingStore();
+  const c = currency || 'R$';
   const isDark = theme === 'dark';
 
   const expensesByCategory = items.reduce((acc, item) => {
@@ -29,7 +30,7 @@ export default function CategorySummary() {
     <div className={`${isDark ? 'bg-[#13131A] border-white/5' : 'bg-white border-gray-200'} rounded-2xl border p-4 space-y-3`}>
       <div className="flex items-center justify-between">
         <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Desglose</span>
-        <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>R$ {totalSpent.toFixed(2)}</span>
+        <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{c} {totalSpent.toFixed(2)}</span>
       </div>
 
       {/* Segmented bar */}
@@ -39,7 +40,7 @@ export default function CategorySummary() {
             key={cat}
             className="h-full transition-all duration-500 hover:brightness-110"
             style={{ width: `${pct}%`, backgroundColor: color }}
-            title={`${cat}: R$ ${expensesByCategory[cat].toFixed(2)} (${pct.toFixed(1)}%)`}
+            title={`${cat}: ${c} ${expensesByCategory[cat].toFixed(2)} (${pct.toFixed(1)}%)`}
           />
         ))}
       </div>
