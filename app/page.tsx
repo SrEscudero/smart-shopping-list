@@ -14,12 +14,16 @@ import ProductCard from './components/ProductCard';
 import CameraScanner from './components/CameraScanner';
 import BudgetWidget from './components/BudgetWidget';
 import OnboardingScreen from './components/OnboardingScreen';
-import { Home as HomeIcon, ClipboardList, BarChart3, CalendarDays, ShoppingCart, Camera, Plus, Minus, Download, Upload, AlertTriangle, CheckCircle2, Info, Search, X, PartyPopper } from 'lucide-react';
+import ConfirmDialog from './components/ConfirmDialog';
+import ShareModal from './components/ShareModal';
+import { DashboardSkeleton, ListSkeleton, StatsSkeleton } from './components/SkeletonLoaders';
+import { Home as HomeIcon, ClipboardList, BarChart3, CalendarDays, ShoppingCart, Camera, Plus, Download, Upload, AlertTriangle, CheckCircle2, Info, Search, X, PartyPopper, Undo2, Share2 } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { CATEGORY_CONFIG } from '../utils/constants';
 
-function SortableProductCard(props: any) {
+function SortableProductCard(props: React.ComponentProps<typeof ProductCard>) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.item.id });
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -39,7 +43,7 @@ export default function Home() {
   const {
     month, items, toggleProduct, removeProduct, updateProduct,
     clearPurchased, theme, shoppingMode, toggleShoppingMode,
-    addMultipleProducts, currency, toggleRecurring
+    addMultipleProducts, currency, toggleRecurring, undo, canUndo
   } = useShoppingStore();
   const c = currency || 'R$';
 
@@ -50,13 +54,17 @@ export default function Home() {
   const [showCamera, setShowCamera] = useState(false);
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
-  const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
+  const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info', undoAction?: () => void } | null>(null);
   const [celebration, setCelebration] = useState(false);
   const [prevPending, setPrevPending] = useState<number | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showConfirmClear, setShowConfirmClear] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
-  // Show onboarding only on first visit
+  // Hydration + onboarding
   useEffect(() => {
+    setHydrated(true);
     if (typeof window !== 'undefined' && !localStorage.getItem('onboarding_done')) {
       setShowOnboarding(true);
     }
@@ -67,9 +75,16 @@ export default function Home() {
     setShowOnboarding(false);
   };
 
-  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3500);
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info', undoAction?: () => void) => {
+    setToast({ message, type, undoAction });
+    setTimeout(() => setToast(null), 5000);
+  };
+
+  const handleClearPurchased = () => {
+    const count = items.filter(i => i.isPurchased).length;
+    clearPurchased();
+    setShowConfirmClear(false);
+    showToast(`${count} productos eliminados`, 'success', () => { undo(); });
   };
 
   const isDark = theme === 'dark';
@@ -249,7 +264,7 @@ export default function Home() {
           )}
         </AnimatePresence>
 
-        {/* TOAST NOTIFICATION */}
+        {/* TOAST NOTIFICATION WITH UNDO */}
         <AnimatePresence>
           {toast && (
             <motion.div
@@ -262,9 +277,31 @@ export default function Home() {
                 {toast.type === 'error' ? <AlertTriangle size={20} className="text-red-400" /> : toast.type === 'success' ? <CheckCircle2 size={20} className="text-green-400" /> : <Info size={20} className="text-blue-400" />}
               </span>
               <span className="text-sm font-semibold">{toast.message}</span>
+              {toast.undoAction && (
+                <button onClick={() => { toast.undoAction?.(); setToast(null); }}
+                  className="ml-2 flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg transition-all"
+                  style={{ background: 'var(--accent-soft)', color: 'var(--accent)', minHeight: 'unset' }}>
+                  <Undo2 size={12} /> Deshacer
+                </button>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* CONFIRM DIALOG */}
+        <ConfirmDialog
+          open={showConfirmClear}
+          title="Limpiar comprados"
+          description="¿Eliminar todos los productos marcados como comprados? Esta acción se puede deshacer."
+          confirmText="Sí, limpiar"
+          variant="warning"
+          itemCount={items.filter(i => i.isPurchased).length}
+          onConfirm={handleClearPurchased}
+          onCancel={() => setShowConfirmClear(false)}
+        />
+
+        {/* SHARE MODAL */}
+        <ShareModal open={showShare} onClose={() => setShowShare(false)} />
 
         {/* ── SHOPPING MODE OVERLAY HEADER ── */}
         {shoppingMode && (
@@ -360,9 +397,13 @@ export default function Home() {
             {/* HOME TAB */}
             {activeTab === 'home' && (
               <motion.div key="home" variants={tabVariants} initial="initial" animate="animate" exit="exit" className="space-y-5">
-                <Dashboard />
-                <BudgetWidget full />
-                <CategorySummary />
+                {!hydrated ? <DashboardSkeleton /> : (
+                  <>
+                    <Dashboard />
+                    <BudgetWidget full />
+                    <CategorySummary />
+                  </>
+                )}
               </motion.div>
             )}
 
@@ -492,20 +533,47 @@ export default function Home() {
                             ))}
                           </SortableContext>
                         </DndContext>
+                      ) : sortBy === 'category' ? (
+                        // ── GROUPED BY CATEGORY (#10) ──
+                        (() => {
+                          const groups = filtered.reduce((acc, item) => {
+                            if (!acc[item.category]) acc[item.category] = [];
+                            acc[item.category].push(item);
+                            return acc;
+                          }, {} as Record<string, typeof filtered>);
+                          let globalIdx = 0;
+                          return Object.entries(groups).map(([cat, groupItems]) => {
+                            const cfg = CATEGORY_CONFIG[cat] || CATEGORY_CONFIG['Otros'] || { color: '#8E8E93', icon: null, bg: 'rgba(142,142,147,0.12)' };
+                            const groupTotal = groupItems.reduce((a, i) => a + i.estimatedPrice * i.quantity, 0);
+                            return (
+                              <div key={cat}>
+                                <div className="sticky top-0 z-10 flex items-center gap-2.5 px-4 py-2.5"
+                                  style={{ background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)' }}>
+                                  <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-sm" style={{ background: cfg.bg }}>{cfg.icon}</div>
+                                  <span className="text-xs font-bold flex-1" style={{ color: cfg.color }}>{cat}</span>
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-md font-semibold" style={{ background: cfg.bg, color: cfg.color }}>{groupItems.length}</span>
+                                  <span className="text-[10px] font-semibold" style={{ color: 'var(--text-tertiary)' }}>{c}{groupTotal.toFixed(2)}</span>
+                                </div>
+                                {groupItems.map((item, idx) => {
+                                  const gi = globalIdx++;
+                                  return (
+                                    <motion.div key={item.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                                      transition={{ duration: 0.25, delay: Math.min(gi * 0.04, 0.3) }}>
+                                      <ProductCard item={item} onToggle={toggleProduct} onRemove={removeProduct} onUpdate={updateProduct}
+                                        isDark={isDark} shoppingMode={shoppingMode} isLast={idx === groupItems.length - 1} />
+                                    </motion.div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          });
+                        })()
                       ) : (
                         filtered.map((item, idx) => (
-                          <motion.div
-                            key={item.id}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.25, delay: Math.min(idx * 0.04, 0.3) }}
-                          >
-                            <ProductCard item={item}
-                              onToggle={toggleProduct}
-                              onRemove={removeProduct}
-                              onUpdate={updateProduct}
-                              isDark={isDark} shoppingMode={shoppingMode} isLast={idx === filtered.length - 1}
-                            />
+                          <motion.div key={item.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.25, delay: Math.min(idx * 0.04, 0.3) }}>
+                            <ProductCard item={item} onToggle={toggleProduct} onRemove={removeProduct} onUpdate={updateProduct}
+                              isDark={isDark} shoppingMode={shoppingMode} isLast={idx === filtered.length - 1} />
                           </motion.div>
                         ))
                       )}
@@ -517,7 +585,7 @@ export default function Home() {
                       <div className="flex flex-wrap items-center gap-3">
                         <span className="text-xs font-semibold" style={{ color: 'var(--text-tertiary)' }}>{filtered.length} items</span>
                         {filter === 'purchased' && items.some(i => i.isPurchased) && (
-                          <button onClick={clearPurchased} className="text-xs font-bold text-red-500 bg-red-500/10 px-2 py-1 rounded-md">
+                          <button onClick={() => setShowConfirmClear(true)} className="text-xs font-bold text-red-500 bg-red-500/10 px-2 py-1 rounded-md">
                             Limpiar comprados
                           </button>
                         )}
@@ -547,22 +615,20 @@ export default function Home() {
                 </label>
               </div>
 
-              {/* WhatsApp export */}
+              {/* Share button */}
               {items.filter(i => !i.isPurchased).length > 0 && (
-                <button onClick={exportToWhatsApp}
+                <button onClick={() => setShowShare(true)}
                   className="w-full flex items-center justify-center gap-2 py-4 px-5 rounded-2xl text-sm font-bold transition-all shadow-sm mt-2"
-                  style={{ background: 'rgba(37,211,102,0.1)', color: '#25D366', border: '1px solid rgba(37,211,102,0.2)' }}>
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.347-.272.273-1.04 1.02-1.04 2.488s1.065 2.886 1.213 3.084c.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" />
-                  </svg>
-                  Compartir lista en WhatsApp
+                  style={{ background: 'var(--accent-soft)', color: 'var(--accent)', border: '1px solid rgba(var(--accent-rgb),0.2)' }}>
+                  <Share2 size={20} />
+                  Compartir lista
                 </button>
               )}
 
             </motion.div>
           )}
 
-          {activeTab === 'stats' && <motion.div key="stats" variants={tabVariants} initial="initial" animate="animate" exit="exit"><StatsPanel /></motion.div>}
+          {activeTab === 'stats' && <motion.div key="stats" variants={tabVariants} initial="initial" animate="animate" exit="exit">{!hydrated ? <StatsSkeleton /> : <StatsPanel />}</motion.div>}
           {activeTab === 'history' && <motion.div key="history" variants={tabVariants} initial="initial" animate="animate" exit="exit"><HistoryModal /></motion.div>}
           </AnimatePresence>
         </main>

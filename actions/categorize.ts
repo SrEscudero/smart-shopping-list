@@ -17,6 +17,10 @@ const VALID_CATEGORIES: Category[] = [
 // Cache en memoria para no repetir llamadas
 const categoryCache = new Map<string, Category>();
 
+// Track consecutive failures for error reporting
+let consecutiveFailures = 0;
+const MAX_FAILURES_BEFORE_WARN = 3;
+
 export async function getCategoryFromAI(productName: string): Promise<Category> {
   const key = productName.toLowerCase().trim();
 
@@ -26,6 +30,9 @@ export async function getCategoryFromAI(productName: string): Promise<Category> 
   if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
     try {
       const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
 
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
@@ -47,20 +54,40 @@ Responde SOLO con el nombre exacto de la categoría, sin puntos, sin explicacion
               temperature: 0,
               maxOutputTokens: 20,
             }
-          })
+          }),
+          signal: controller.signal,
         }
       );
+
+      clearTimeout(timeout);
 
       if (response.ok) {
         const data = await response.json();
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() as Category;
         if (VALID_CATEGORIES.includes(text)) {
           categoryCache.set(key, text);
+          consecutiveFailures = 0;
           return text;
+        } else {
+          console.warn(`[AI Categorize] Invalid category returned: "${text}" for product "${productName}"`);
         }
+      } else {
+        const errorBody = await response.text().catch(() => 'unknown');
+        console.error(`[AI Categorize] API error ${response.status}: ${errorBody.substring(0, 200)}`);
+        consecutiveFailures++;
       }
-    } catch {
-      // Fallback al diccionario local
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      if (errorMessage === 'The operation was aborted' || errorMessage.includes('abort')) {
+        console.warn(`[AI Categorize] Timeout for product "${productName}"`);
+      } else {
+        console.error(`[AI Categorize] Error for "${productName}": ${errorMessage}`);
+      }
+      consecutiveFailures++;
+    }
+
+    if (consecutiveFailures >= MAX_FAILURES_BEFORE_WARN) {
+      console.warn(`[AI Categorize] ⚠️ ${consecutiveFailures} consecutive failures. Check API key and network.`);
     }
   }
 
@@ -68,6 +95,14 @@ Responde SOLO con el nombre exacto de la categoría, sin puntos, sin explicacion
   const result = localCategorize(key);
   categoryCache.set(key, result);
   return result;
+}
+
+// Exposed for client-side: check if AI is likely working
+export async function getCategorizationStatus(): Promise<{ aiAvailable: boolean; failures: number }> {
+  return {
+    aiAvailable: !!process.env.GOOGLE_GENERATIVE_AI_API_KEY && consecutiveFailures < MAX_FAILURES_BEFORE_WARN,
+    failures: consecutiveFailures,
+  };
 }
 
 function localCategorize(input: string): Category {

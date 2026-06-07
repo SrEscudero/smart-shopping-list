@@ -1,11 +1,15 @@
 {
-  "name": "Smart Shopping List",
+  "name": "Compras Inteligentes",
   "short_name": "Compras",
-  "description": "Tu lista de compras inteligente",
+  "description": "Tu lista de compras inteligente con IA, presupuesto y modo compras offline",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0D0D14",
-  "theme_color": "#0A84FF",
+  "orientation": "portrait",
+  "background_color": "#08080F",
+  "theme_color": "#3B82F6",
+  "categories": ["shopping", "productivity", "utilities"],
+  "lang": "es",
+  "dir": "ltr",
   "icons": [
     {
       "src": "/icons/icon-192x192.png",
@@ -18,5 +22,21 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "shortcuts": [
+    {
+      "name": "Agregar producto",
+      "short_name": "Agregar",
+      "url": "/?tab=list&action=add",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Modo compras",
+      "short_name": "Comprar",
+      "url": "/?tab=list&action=shop",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
 }

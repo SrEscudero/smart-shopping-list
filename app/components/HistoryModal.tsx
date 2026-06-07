@@ -44,7 +44,19 @@ export default function HistoryModal() {
   };
 
   const filteredHistory = history
-    .filter(h => h.month.toLowerCase().includes(searchQuery.toLowerCase()))
+    .filter(h => {
+      if (!searchQuery) return true;
+      const q = searchQuery.toLowerCase();
+      // Search in month name
+      if (h.month.toLowerCase().includes(q)) return true;
+      // Search inside products of this month (#7 global search)
+      if (h.items.some(item =>
+        item.name.toLowerCase().includes(q) ||
+        item.category.toLowerCase().includes(q) ||
+        (item.store && item.store.toLowerCase().includes(q))
+      )) return true;
+      return false;
+    })
     .sort((a, b) => {
       if (sortBy === 'spent') return b.totalSpent - a.totalSpent;
       if (sortBy === 'items') return b.items.length - a.items.length;

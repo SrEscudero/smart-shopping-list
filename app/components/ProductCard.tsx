@@ -26,7 +26,7 @@ function triggerConfetti(x: number, y: number) {
 
 interface Props {
     item: Product;
-    onToggle: (id: string) => void;
+    onToggle: (id: string, finalPrice?: number) => void;
     onRemove: (id: string) => void;
     onUpdate: (id: string, data: Partial<Product>) => void;
     isDark: boolean;
@@ -35,7 +35,8 @@ interface Props {
 }
 
 const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, onUpdate, isDark, shoppingMode = false, isLast = false }: Props) {
-    const { currency, toggleRecurring } = useShoppingStore();
+    const currency = useShoppingStore(s => s.currency);
+    const toggleRecurring = useShoppingStore(s => s.toggleRecurring);
     const cur = currency || 'R$';
     const [showEdit, setShowEdit] = useState(false);
     const [justToggled, setJustToggled] = useState(false);
@@ -46,6 +47,9 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
     const [editCategory, setEditCategory] = useState(item.category);
     const [editNote, setEditNote] = useState(item.note || '');
     const [editPriority, setEditPriority] = useState<'alta' | 'media' | 'baja'>(item.priority || 'media');
+    // Final price input for shopping mode
+    const [showFinalPrice, setShowFinalPrice] = useState(false);
+    const [finalPriceInput, setFinalPriceInput] = useState('');
 
     // Swipe to delete
     const [startX, setStartX] = useState<number | null>(null);
@@ -78,13 +82,36 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
     const handleToggle = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
         triggerHaptic(item.isPurchased ? 'light' : 'success');
+        if (!item.isPurchased && shoppingMode) {
+            // Show final price input instead of immediately toggling
+            setShowFinalPrice(true);
+            setFinalPriceInput(item.estimatedPrice.toString());
+            triggerConfetti(e.clientX, e.clientY);
+            return;
+        }
         if (!item.isPurchased) {
             triggerConfetti(e.clientX, e.clientY);
             setJustToggled(true);
             setTimeout(() => setJustToggled(false), 600);
         }
         onToggle(item.id);
-    }, [item.isPurchased, item.id, onToggle]);
+    }, [item.isPurchased, item.id, onToggle, shoppingMode, item.estimatedPrice]);
+
+    const confirmFinalPrice = () => {
+        const fp = parseFloat(finalPriceInput);
+        const finalPrice = !isNaN(fp) && fp > 0 ? fp : item.estimatedPrice;
+        onToggle(item.id, finalPrice);
+        setShowFinalPrice(false);
+        setJustToggled(true);
+        setTimeout(() => setJustToggled(false), 600);
+    };
+
+    const skipFinalPrice = () => {
+        onToggle(item.id, item.estimatedPrice);
+        setShowFinalPrice(false);
+        setJustToggled(true);
+        setTimeout(() => setJustToggled(false), 600);
+    };
 
     const openEdit = () => {
         setEditName(item.name);
@@ -116,41 +143,79 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
     // ── SHOPPING MODE ──
     if (shoppingMode) {
         return (
-            <button onClick={handleToggle}
-                className="w-full text-left flex items-center gap-4 px-4 py-5 transition-all duration-300 relative overflow-hidden"
-                style={{
-                    borderBottom: isLast ? 'none' : '1px solid var(--border)',
-                    background: justToggled ? 'rgba(var(--accent-rgb), 0.08)' : 'transparent',
-                    opacity: item.isPurchased ? 0.4 : 1,
-                    minHeight: 'unset',
-                }}>
-                <div className="w-10 h-10 rounded-2xl border-2 flex items-center justify-center flex-shrink-0 transition-all duration-300"
+            <>
+                <button onClick={handleToggle}
+                    className="w-full text-left flex items-center gap-4 px-4 py-5 transition-all duration-300 relative overflow-hidden"
                     style={{
-                        background: item.isPurchased ? 'var(--accent)' : 'transparent',
-                        borderColor: item.isPurchased ? 'var(--accent)' : 'rgba(255,255,255,0.2)',
-                        boxShadow: item.isPurchased ? '0 0 12px var(--accent-glow)' : 'none',
+                        borderBottom: isLast ? 'none' : '1px solid var(--border)',
+                        background: justToggled ? 'rgba(var(--accent-rgb), 0.08)' : 'transparent',
+                        opacity: item.isPurchased ? 0.4 : 1,
+                        minHeight: 'unset',
                     }}>
-                    {item.isPurchased && (
-                        <svg className="w-5 h-5 text-white animate-bounce-check" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                    )}
-                </div>
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl" style={{ background: cfg.bg }}>{cfg.icon}</div>
-                <div className="flex-1 min-w-0">
-                    <div className="relative inline-block max-w-full">
-                        <span className="font-semibold text-base leading-tight">{item.name}</span>
+                    <div className="w-10 h-10 rounded-2xl border-2 flex items-center justify-center flex-shrink-0 transition-all duration-300"
+                        style={{
+                            background: item.isPurchased ? 'var(--accent)' : 'transparent',
+                            borderColor: item.isPurchased ? 'var(--accent)' : 'rgba(255,255,255,0.2)',
+                            boxShadow: item.isPurchased ? '0 0 12px var(--accent-glow)' : 'none',
+                        }}>
                         {item.isPurchased && (
-                            <div className="absolute left-0 top-1/2 h-0.5 rounded-full -translate-y-1/2 strike-done"
-                                style={{ width: '100%', background: 'var(--accent)' }} />
+                            <svg className="w-5 h-5 text-white animate-bounce-check" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
                         )}
                     </div>
-                    <p className="text-xs opacity-40 mt-0.5">×{item.quantity} · {item.category}</p>
-                </div>
-                <p className="font-bold text-base flex-shrink-0" style={{ opacity: item.isPurchased ? 0.4 : 1 }}>
-                    {cur}{total.toFixed(2)}
-                </p>
-            </button>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-xl" style={{ background: cfg.bg }}>{cfg.icon}</div>
+                    <div className="flex-1 min-w-0">
+                        <div className="relative inline-block max-w-full">
+                            <span className="font-semibold text-base leading-tight">{item.name}</span>
+                            {item.isPurchased && (
+                                <div className="absolute left-0 top-1/2 h-0.5 rounded-full -translate-y-1/2 strike-done" style={{ width: '100%', background: 'var(--accent)' }} />
+                            )}
+                        </div>
+                        <p className="text-xs opacity-40 mt-0.5">×{item.quantity} · {item.category}</p>
+                        {item.isPurchased && item.finalPrice && item.finalPrice !== item.estimatedPrice && (
+                            <p className="text-[10px] mt-0.5" style={{ color: 'var(--accent)' }}>
+                                Real: {cur}{(item.finalPrice * item.quantity).toFixed(2)}
+                            </p>
+                        )}
+                    </div>
+                    <p className="font-bold text-base flex-shrink-0" style={{ opacity: item.isPurchased ? 0.4 : 1 }}>
+                        {cur}{total.toFixed(2)}
+                    </p>
+                </button>
+
+                {/* Final price mini-input overlay */}
+                {showFinalPrice && typeof window !== 'undefined' && ReactDOM.createPortal(
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center px-6" style={{ touchAction: 'none' }}>
+                        <div className="absolute inset-0 bg-black/60" style={{ backdropFilter: 'blur(4px)' }} onClick={skipFinalPrice} />
+                        <div className="relative w-full max-w-xs rounded-3xl p-5 space-y-4 animate-scale-in" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                            <div className="text-center">
+                                <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3 text-xl" style={{ background: cfg.bg }}>{cfg.icon}</div>
+                                <h3 className="text-base font-bold font-display" style={{ color: 'var(--text-primary)' }}>{item.name}</h3>
+                                <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>¿Cuánto costó realmente?</p>
+                            </div>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>{cur}</span>
+                                <input type="number" step="0.01" min="0" inputMode="decimal" autoFocus
+                                    className="w-full text-2xl font-bold pl-10 pr-3 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--accent)] text-center"
+                                    style={{ background: 'var(--bg-elevated)', color: 'var(--text-primary)' }}
+                                    value={finalPriceInput} onChange={e => setFinalPriceInput(e.target.value)}
+                                    onKeyDown={e => e.key === 'Enter' && confirmFinalPrice()} />
+                            </div>
+                            <p className="text-xs text-center" style={{ color: 'var(--text-tertiary)' }}>
+                                Estimado: {cur} {item.estimatedPrice.toFixed(2)} × {item.quantity}
+                            </p>
+                            <div className="flex gap-2">
+                                <button onClick={skipFinalPrice} className="flex-1 py-3 rounded-xl text-sm font-semibold"
+                                    style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', minHeight: 'unset' }}>Usar estimado</button>
+                                <button onClick={confirmFinalPrice} className="flex-1 py-3 rounded-xl text-sm font-bold text-white"
+                                    style={{ background: 'var(--accent)', minHeight: 'unset' }}>Confirmar</button>
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                )}
+            </>
         );
     }
 
@@ -158,279 +223,115 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
     return (
         <div className="relative overflow-hidden"
             style={{ transition: 'height 0.3s, opacity 0.3s', height: isDeleting ? 0 : 'auto', opacity: isDeleting ? 0 : 1 }}>
-
-            {/* Swipe delete background */}
             <div className="absolute inset-y-0 right-0 w-full bg-red-500 flex items-center justify-end px-6 text-white"
-                style={{ opacity: offsetX < -20 ? 1 : 0 }}>
-                <Trash2 size={22} />
-            </div>
-
-            <div
-                className="relative flex items-center gap-3 px-3 py-4 transition-all duration-200"
-                style={{
-                    borderBottom: isLast ? 'none' : '1px solid var(--border)',
-                    opacity: item.isPurchased ? 0.5 : 1,
-                    transform: `translateX(${offsetX}px)`,
-                    background: 'var(--bg-card)',
-                }}
-                onTouchStart={onTouchStart}
-                onTouchMove={onTouchMove}
-                onTouchEnd={onTouchEnd}
-            >
-                {/* Priority bar */}
+                style={{ opacity: offsetX < -20 ? 1 : 0 }}><Trash2 size={22} /></div>
+            <div className="relative flex items-center gap-3 px-3 py-4 transition-all duration-200"
+                style={{ borderBottom: isLast ? 'none' : '1px solid var(--border)', opacity: item.isPurchased ? 0.5 : 1, transform: `translateX(${offsetX}px)`, background: 'var(--bg-card)' }}
+                onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
                 <div className="absolute left-0 top-3 bottom-3 w-0.5 rounded-full" style={{ background: cfg.color }} />
-
-                {/* Checkbox */}
-                <button onClick={handleToggle}
-                    className="w-11 h-11 flex items-center justify-center flex-shrink-0"
-                    style={{ minHeight: 'unset' }}
-                    aria-label="Marcar producto">
+                <button onClick={handleToggle} className="w-11 h-11 flex items-center justify-center flex-shrink-0" style={{ minHeight: 'unset' }} aria-label="Marcar producto">
                     <div className="w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all duration-200"
-                        style={{
-                            background: item.isPurchased ? 'var(--accent)' : 'transparent',
-                            borderColor: item.isPurchased ? 'var(--accent)' : 'rgba(255,255,255,0.2)',
-                        }}>
-                        {item.isPurchased && (
-                            <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                        )}
+                        style={{ background: item.isPurchased ? 'var(--accent)' : 'transparent', borderColor: item.isPurchased ? 'var(--accent)' : 'rgba(255,255,255,0.2)' }}>
+                        {item.isPurchased && (<svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>)}
                     </div>
                 </button>
-
-                {/* Category icon */}
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-lg" style={{ background: cfg.bg }}>
-                    {cfg.icon}
-                </div>
-
-                {/* Info */}
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-lg" style={{ background: cfg.bg }}>{cfg.icon}</div>
                 <div className="flex-1 min-w-0">
-                    <p className={`font-semibold text-sm leading-snug ${item.isPurchased ? 'line-through' : ''}`}
-                        style={{ color: item.isPurchased ? 'var(--text-tertiary)' : 'var(--text-primary)' }}>
-                        {item.name}
-                    </p>
+                    <p className={`font-semibold text-sm leading-snug ${item.isPurchased ? 'line-through' : ''}`} style={{ color: item.isPurchased ? 'var(--text-tertiary)' : 'var(--text-primary)' }}>{item.name}</p>
                     <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                         <span className="text-xs font-medium" style={{ color: cfg.color }}>{item.category}</span>
-                        {item.store && item.store !== 'Varias' && (
-                            <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>· {item.store}</span>
-                        )}
-                        {item.note && (
-                            <span className="text-xs italic" style={{ color: 'var(--text-tertiary)' }}>· {item.note}</span>
-                        )}
-                        {item.priority === 'alta' && (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold text-red-400 bg-red-500/10">URGENTE</span>
-                        )}
+                        {item.store && item.store !== 'Varias' && <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>· {item.store}</span>}
+                        {item.note && <span className="text-xs italic" style={{ color: 'var(--text-tertiary)' }}>· {item.note}</span>}
+                        {item.priority === 'alta' && <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold text-red-400 bg-red-500/10">URGENTE</span>}
+                        {item.isRecurring && <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold" style={{ color: 'var(--accent)', background: 'var(--accent-soft)' }}>🔄</span>}
                     </div>
                 </div>
-
-                {/* Price */}
                 <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
                     <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{cur}{total.toFixed(2)}</span>
                     <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>×{item.quantity}</span>
+                    {item.finalPrice && item.finalPrice !== item.estimatedPrice && (
+                        <span className="text-[10px]" style={{ color: item.finalPrice > item.estimatedPrice ? '#FF453A' : '#30D158' }}>
+                            Real: {cur}{(item.finalPrice * item.quantity).toFixed(2)}
+                        </span>
+                    )}
                 </div>
-
-                {/* Edit button */}
-                <button onClick={openEdit}
-                    className="w-11 h-11 flex items-center justify-center flex-shrink-0"
-                    style={{ minHeight: 'unset' }}
-                    aria-label="Editar producto">
+                <button onClick={openEdit} className="w-11 h-11 flex items-center justify-center flex-shrink-0" style={{ minHeight: 'unset' }} aria-label="Editar producto">
                     <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}>
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                        </svg>
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                     </div>
                 </button>
             </div>
 
-            {/* ── EDIT MODAL via Portal (escapes CSS transform context) ── */}
+            {/* ── EDIT MODAL ── */}
             {showEdit && typeof window !== 'undefined' && ReactDOM.createPortal(
                 <div className="fixed inset-0 flex flex-col justify-end" style={{ zIndex: 9999, touchAction: 'none' }}>
-                    {/* Backdrop */}
-                    <div
-                        className="absolute inset-0 bg-black/60"
-                        style={{ backdropFilter: 'blur(4px)' }}
-                        onClick={() => setShowEdit(false)}
-                    />
-
-                    {/* Sheet */}
-                    <div className="relative w-full flex flex-col animate-slide-up"
-                        style={{
-                            background: isDark ? '#0D0D16' : '#FFFFFF',
-                            borderRadius: '20px 20px 0 0',
-                            maxHeight: '88svh',
-                            zIndex: 1,
-                        }}>
-
-                        {/* Drag handle */}
-                        <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
-                            <div className="w-10 h-1 rounded-full" style={{ background: 'rgba(128,128,128,0.3)' }} />
-                        </div>
-
-                        {/* Header */}
-                        <div className="px-4 py-2 flex items-center gap-3 flex-shrink-0"
-                            style={{ borderBottom: '1px solid var(--border)' }}>
-                            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                                style={{ background: editCfg.bg }}>
-                                {editCfg.icon}
-                            </div>
+                    <div className="absolute inset-0 bg-black/60" style={{ backdropFilter: 'blur(4px)' }} onClick={() => setShowEdit(false)} />
+                    <div className="relative w-full flex flex-col animate-slide-up" style={{ background: isDark ? '#0D0D16' : '#FFFFFF', borderRadius: '20px 20px 0 0', maxHeight: '88svh', zIndex: 1 }}>
+                        <div className="flex justify-center pt-3 pb-1 flex-shrink-0"><div className="w-10 h-1 rounded-full" style={{ background: 'rgba(128,128,128,0.3)' }} /></div>
+                        <div className="px-4 py-2 flex items-center gap-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
+                            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: editCfg.bg }}>{editCfg.icon}</div>
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm font-bold font-display truncate" style={{ color: 'var(--text-primary)' }}>
-                                    {item.name}
-                                </p>
+                                <p className="text-sm font-bold font-display truncate" style={{ color: 'var(--text-primary)' }}>{item.name}</p>
                                 <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Editar producto</p>
                             </div>
-                            <button onClick={() => setShowEdit(false)}
-                                className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                                style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', minHeight: 'unset' }}>
-                                <X size={17} />
-                            </button>
+                            <button onClick={() => setShowEdit(false)} className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', minHeight: 'unset' }}><X size={17} /></button>
                         </div>
-
-                        {/* Scrollable fields */}
                         <div className="overflow-y-auto flex-1 min-h-0 px-4 py-3 space-y-3">
-
-                            <div className="space-y-1">
-                                <label className={lbl}>Nombre</label>
-                                <input type="text" className={inputCls} value={editName}
-                                    onChange={e => setEditName(e.target.value)} />
-                            </div>
-
+                            <div className="space-y-1"><label className={lbl}>Nombre</label><input type="text" className={inputCls} value={editName} onChange={e => setEditName(e.target.value)} /></div>
                             <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1">
-                                    <label className={lbl}>Precio unit.</label>
-                                    <div className="relative">
-                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-medium"
-                                            style={{ color: 'var(--text-secondary)' }}>{cur}</span>
-                                        <input type="number" step="0.01" min="0" inputMode="decimal"
-                                            className={`w-full text-sm pl-8 pr-3 py-3 rounded-xl focus:outline-none ${isDark ? 'bg-white/5 text-white' : 'bg-black/5 text-gray-900'}`}
-                                            value={editPrice} onChange={e => setEditPrice(e.target.value)} />
-                                    </div>
+                                <div className="space-y-1"><label className={lbl}>Precio unit.</label>
+                                    <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{cur}</span>
+                                    <input type="number" step="0.01" min="0" inputMode="decimal" className={`w-full text-sm pl-8 pr-3 py-3 rounded-xl focus:outline-none ${isDark ? 'bg-white/5 text-white' : 'bg-black/5 text-gray-900'}`} value={editPrice} onChange={e => setEditPrice(e.target.value)} /></div>
                                 </div>
-                                <div className="space-y-1">
-                                    <label className={lbl}>Cantidad</label>
-                                    <input type="number" min="1" inputMode="numeric"
-                                        className={`${inputCls} text-center`}
-                                        value={editQty} onChange={e => setEditQty(e.target.value)} />
-                                </div>
+                                <div className="space-y-1"><label className={lbl}>Cantidad</label><input type="number" min="1" inputMode="numeric" className={`${inputCls} text-center`} value={editQty} onChange={e => setEditQty(e.target.value)} /></div>
                             </div>
-
                             {editPrice && editQty && (
-                                <div className="flex items-center justify-between px-3 py-2.5 rounded-xl"
-                                    style={{ background: 'var(--accent-soft)' }}>
+                                <div className="flex items-center justify-between px-3 py-2.5 rounded-xl" style={{ background: 'var(--accent-soft)' }}>
                                     <span className="text-sm" style={{ color: 'var(--accent)' }}>Total</span>
                                     <span className="font-bold" style={{ color: 'var(--accent)' }}>{cur} {liveTotal}</span>
                                 </div>
                             )}
-
-                            <div className="space-y-1">
-                                <label className={lbl}>Tienda</label>
-                                <input type="text" className={inputCls} value={editStore}
-                                    onChange={e => setEditStore(e.target.value)}
-                                    placeholder="Atacadão, Stok Center..." />
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <label className={lbl}>Categoría</label>
+                            <div className="space-y-1"><label className={lbl}>Tienda</label><input type="text" className={inputCls} value={editStore} onChange={e => setEditStore(e.target.value)} placeholder="Atacadão, Stok Center..." /></div>
+                            <div className="space-y-1.5"><label className={lbl}>Categoría</label>
                                 <div className="grid grid-cols-2 gap-1.5">
-                                    {ALL_CATEGORIES.map(cat => {
-                                        const catCfg = CATEGORY_CONFIG[cat] || CATEGORY_CONFIG['Otros'];
-                                        const sel = editCategory === cat;
-                                        return (
-                                            <button key={cat} onClick={() => setEditCategory(cat)}
-                                                className="flex items-center gap-2 px-3 py-2 rounded-xl text-left transition-all"
-                                                style={{
-                                                    background: sel ? catCfg.bg : 'var(--bg-elevated)',
-                                                    border: `1px solid ${sel ? catCfg.color + '50' : 'transparent'}`,
-                                                    minHeight: 'unset',
-                                                }}>
-                                                <span className="flex-shrink-0 text-sm">{catCfg.icon}</span>
-                                                <span className="text-xs font-medium truncate"
-                                                    style={{ color: sel ? catCfg.color : 'var(--text-secondary)' }}>
-                                                    {cat}
-                                                </span>
-                                            </button>
-                                        );
-                                    })}
+                                    {ALL_CATEGORIES.map(cat => { const catCfg = CATEGORY_CONFIG[cat] || CATEGORY_CONFIG['Otros']; const sel = editCategory === cat; return (
+                                        <button key={cat} onClick={() => setEditCategory(cat)} className="flex items-center gap-2 px-3 py-2 rounded-xl text-left transition-all"
+                                            style={{ background: sel ? catCfg.bg : 'var(--bg-elevated)', border: `1px solid ${sel ? catCfg.color + '50' : 'transparent'}`, minHeight: 'unset' }}>
+                                            <span className="flex-shrink-0 text-sm">{catCfg.icon}</span>
+                                            <span className="text-xs font-medium truncate" style={{ color: sel ? catCfg.color : 'var(--text-secondary)' }}>{cat}</span>
+                                        </button>
+                                    ); })}
                                 </div>
                             </div>
-
-                            <div className="space-y-1">
-                                <label className={lbl}>Nota (opcional)</label>
-                                <input type="text" className={inputCls} value={editNote}
-                                    onChange={e => setEditNote(e.target.value)}
-                                    placeholder="Marca, tamaño, variante..." />
-                            </div>
-
-                            <div className="space-y-1.5">
-                                <label className={lbl}>Prioridad</label>
+                            <div className="space-y-1"><label className={lbl}>Nota (opcional)</label><input type="text" className={inputCls} value={editNote} onChange={e => setEditNote(e.target.value)} placeholder="Marca, tamaño, variante..." /></div>
+                            <div className="space-y-1.5"><label className={lbl}>Prioridad</label>
                                 <div className="grid grid-cols-3 gap-2">
                                     {([
                                         { id: 'alta' as const, label: 'Alta', bg: 'rgba(255,69,58,0.15)', color: '#FF453A' },
                                         { id: 'media' as const, label: 'Media', bg: 'rgba(255,214,10,0.15)', color: '#FFD60A' },
                                         { id: 'baja' as const, label: 'Baja', bg: 'rgba(48,209,88,0.15)', color: '#30D158' },
                                     ]).map(p => (
-                                        <button key={p.id} onClick={() => setEditPriority(p.id)}
-                                            className="py-2.5 rounded-xl text-sm font-semibold transition-all"
-                                            style={{
-                                                background: editPriority === p.id ? p.bg : 'var(--bg-elevated)',
-                                                color: editPriority === p.id ? p.color : 'var(--text-secondary)',
-                                                minHeight: 'unset',
-                                            }}>
-                                            {p.label}
-                                        </button>
+                                        <button key={p.id} onClick={() => setEditPriority(p.id)} className="py-2.5 rounded-xl text-sm font-semibold transition-all"
+                                            style={{ background: editPriority === p.id ? p.bg : 'var(--bg-elevated)', color: editPriority === p.id ? p.color : 'var(--text-secondary)', minHeight: 'unset' }}>{p.label}</button>
                                     ))}
                                 </div>
                             </div>
-
-                            {/* Recurring toggle */}
-                            <button
-                                onClick={() => toggleRecurring(item.id)}
-                                className="w-full flex items-center justify-between px-3 py-3 rounded-xl transition-all"
-                                style={{
-                                    background: item.isRecurring ? 'var(--accent-soft)' : 'var(--bg-elevated)',
-                                    border: item.isRecurring ? '1px solid rgba(var(--accent-rgb), 0.3)' : '1px solid transparent',
-                                    minHeight: 'unset',
-                                }}>
+                            <button onClick={() => toggleRecurring(item.id)} className="w-full flex items-center justify-between px-3 py-3 rounded-xl transition-all"
+                                style={{ background: item.isRecurring ? 'var(--accent-soft)' : 'var(--bg-elevated)', border: item.isRecurring ? '1px solid rgba(var(--accent-rgb), 0.3)' : '1px solid transparent', minHeight: 'unset' }}>
                                 <div className="flex items-center gap-2">
                                     <RefreshCw size={14} style={{ color: item.isRecurring ? 'var(--accent)' : 'var(--text-tertiary)' }} />
-                                    <span className="text-sm font-medium" style={{ color: item.isRecurring ? 'var(--accent)' : 'var(--text-secondary)' }}>
-                                        Producto recurrente
-                                    </span>
+                                    <span className="text-sm font-medium" style={{ color: item.isRecurring ? 'var(--accent)' : 'var(--text-secondary)' }}>Producto recurrente</span>
                                 </div>
-                                <span className="text-[10px] font-bold" style={{ color: item.isRecurring ? 'var(--accent)' : 'var(--text-tertiary)' }}>
-                                    {item.isRecurring ? 'ON' : 'OFF'}
-                                </span>
+                                <span className="text-[10px] font-bold" style={{ color: item.isRecurring ? 'var(--accent)' : 'var(--text-tertiary)' }}>{item.isRecurring ? 'ON' : 'OFF'}</span>
                             </button>
                         </div>
-
-                        {/* Action footer */}
-                        <div className="flex gap-3 px-4 py-3 flex-shrink-0"
-                            style={{
-                                borderTop: '1px solid var(--border)',
-                                paddingBottom: 'max(env(safe-area-inset-bottom, 12px), 12px)',
-                            }}>
-                            <button
-                                onClick={() => { onRemove(item.id); setShowEdit(false); }}
-                                className="flex items-center gap-2 px-4 py-3.5 rounded-2xl text-sm font-semibold flex-shrink-0"
-                                style={{
-                                    background: 'rgba(255,69,58,0.12)',
-                                    border: '1px solid rgba(255,69,58,0.25)',
-                                    color: '#FF453A',
-                                    minHeight: 'unset',
-                                }}>
-                                <Trash2 size={15} />
-                                <span>Eliminar</span>
+                        <div className="flex gap-3 px-4 py-3 flex-shrink-0" style={{ borderTop: '1px solid var(--border)', paddingBottom: 'max(env(safe-area-inset-bottom, 12px), 12px)' }}>
+                            <button onClick={() => { onRemove(item.id); setShowEdit(false); }} className="flex items-center gap-2 px-4 py-3.5 rounded-2xl text-sm font-semibold flex-shrink-0"
+                                style={{ background: 'rgba(255,69,58,0.12)', border: '1px solid rgba(255,69,58,0.25)', color: '#FF453A', minHeight: 'unset' }}>
+                                <Trash2 size={15} /><span>Eliminar</span>
                             </button>
-                            <button
-                                onClick={handleSave}
-                                className="flex-1 py-3.5 rounded-2xl text-white font-bold text-sm"
-                                style={{
-                                    background: 'var(--accent)',
-                                    boxShadow: '0 4px 16px var(--accent-glow)',
-                                    minHeight: 'unset',
-                                }}>
-                                Guardar
-                            </button>
+                            <button onClick={handleSave} className="flex-1 py-3.5 rounded-2xl text-white font-bold text-sm"
+                                style={{ background: 'var(--accent)', boxShadow: '0 4px 16px var(--accent-glow)', minHeight: 'unset' }}>Guardar</button>
                         </div>
                     </div>
                 </div>,

@@ -19,6 +19,8 @@ interface CameraScannerProps {
 export default function CameraScanner({ onClose }: CameraScannerProps) {
   const addProduct = useShoppingStore(s => s.addProduct);
   const theme = useShoppingStore(s => s.theme);
+  const currency = useShoppingStore(s => s.currency);
+  const c = currency || 'R$';
   const isDark = theme === 'dark';
 
   const [mode, setMode] = useState<'idle' | 'camera' | 'preview' | 'processing' | 'results'>('idle');
@@ -391,7 +393,7 @@ export default function CameraScanner({ onClose }: CameraScannerProps) {
                         />
                         <div className="flex gap-2">
                           <div className="relative flex-1">
-                            <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-xs ${subtext}`}>R$</span>
+                            <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-xs ${subtext}`}>{c}</span>
                             <input
                               type="number"
                               step="0.01"
