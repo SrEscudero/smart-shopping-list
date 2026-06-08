@@ -6,6 +6,7 @@ import { useShoppingStore } from '../../store/useShoppingStore';
 import { getCategoryFromAI } from '../../actions/categorize';
 import { v4 as uuidv4 } from 'uuid';
 import { Pencil, Plus } from 'lucide-react';
+import VoiceInput from './VoiceInput';
 
 interface AddProductFormProps {
   onAdd?: () => void;
@@ -66,6 +67,12 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
     }).catch(() => {
       // Ignore errors, remains 'Otros'
     });
+  };
+
+  const handleVoiceResult = (data: { name: string; price?: number; quantity?: number }) => {
+    setName(data.name);
+    if (data.price) setPrice(data.price.toString());
+    if (data.quantity) setQuantity(data.quantity.toString());
   };
 
   return (
@@ -152,19 +159,22 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
         </div>
       )}
 
-      {/* Submit */}
-      <button
-        type="submit"
-        disabled={!name || !price}
-        className="w-full text-white font-bold py-3.5 rounded-xl transition-all disabled:opacity-40 flex items-center justify-center gap-2 text-sm"
-        style={{
-          background: 'var(--accent)',
-          boxShadow: '0 4px 16px var(--accent-glow)',
-          minHeight: 'unset',
-        }}
-      >
-        <Plus size={18} /> Agregar producto
-      </button>
+      {/* Submit + Voice */}
+      <div className="flex gap-2">
+        <VoiceInput onResult={handleVoiceResult} currency={c} />
+        <button
+          type="submit"
+          disabled={!name || !price}
+          className="flex-1 text-white font-bold py-3.5 rounded-xl transition-all disabled:opacity-40 flex items-center justify-center gap-2 text-sm"
+          style={{
+            background: 'var(--accent)',
+            boxShadow: '0 4px 16px var(--accent-glow)',
+            minHeight: 'unset',
+          }}
+        >
+          <Plus size={18} /> Agregar producto
+        </button>
+      </div>
     </form>
   );
 }

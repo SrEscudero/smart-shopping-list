@@ -16,8 +16,11 @@ import BudgetWidget from './components/BudgetWidget';
 import OnboardingScreen from './components/OnboardingScreen';
 import ConfirmDialog from './components/ConfirmDialog';
 import ShareModal from './components/ShareModal';
+import QuickAdd from './components/QuickAdd';
+import VoiceInput from './components/VoiceInput';
+import TemplatesModal from './components/TemplatesModal';
 import { DashboardSkeleton, ListSkeleton, StatsSkeleton } from './components/SkeletonLoaders';
-import { Home as HomeIcon, ClipboardList, BarChart3, CalendarDays, ShoppingCart, Camera, Plus, Download, Upload, AlertTriangle, CheckCircle2, Info, Search, X, PartyPopper, Undo2, Share2 } from 'lucide-react';
+import { Home as HomeIcon, ClipboardList, BarChart3, CalendarDays, ShoppingCart, Camera, Plus, Download, Upload, AlertTriangle, CheckCircle2, Info, Search, X, PartyPopper, Undo2, Share2, Bookmark } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -60,6 +63,7 @@ export default function Home() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showConfirmClear, setShowConfirmClear] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
   // Hydration + onboarding
@@ -303,6 +307,9 @@ export default function Home() {
         {/* SHARE MODAL */}
         <ShareModal open={showShare} onClose={() => setShowShare(false)} />
 
+        {/* TEMPLATES MODAL */}
+        <TemplatesModal open={showTemplates} onClose={() => setShowTemplates(false)} />
+
         {/* ── SHOPPING MODE OVERLAY HEADER ── */}
         {shoppingMode && (
           <div className="fixed top-0 left-0 right-0 z-40 animate-slide-up shadow-md"
@@ -484,7 +491,16 @@ export default function Home() {
                   <Camera size={20} />
                   <span>Escanear</span>
                 </button>
+                <button onClick={() => setShowTemplates(true)}
+                  className="py-3.5 px-5 rounded-2xl flex items-center justify-center gap-2 transition-all text-sm font-bold shadow-sm btn-ripple"
+                  style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
+                  <Bookmark size={20} />
+                  <span>Plantillas</span>
+                </button>
               </div>
+
+              {/* Quick Add - Frequent Products */}
+              <QuickAdd />
 
               <AnimatePresence>
                 {showAddForm && (
