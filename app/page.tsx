@@ -649,40 +649,44 @@ export default function Home() {
           </AnimatePresence>
         </main>
 
-        {/* ── FAB ── */}
+        {/* ── FAB — Material You 2026 ── */}
         <AnimatePresence>
           {activeTab === 'list' && !showAddForm && (
             <motion.button
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0, opacity: 0 }}
-              whileTap={{ scale: 0.9 }}
+              initial={{ scale: 0, opacity: 0, rotate: -90 }}
+              animate={{ scale: 1, opacity: 1, rotate: 0 }}
+              exit={{ scale: 0, opacity: 0, rotate: 90 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.92 }}
               onClick={() => setShowAddForm(true)}
-              className="fixed z-30 w-14 h-14 rounded-full flex items-center justify-center text-white shadow-2xl fab-pulse"
+              className="fixed z-30 w-14 h-14 flex items-center justify-center text-white fab-pulse"
               style={{
-                background: 'var(--accent)',
-                right: '16px',
-                bottom: 'calc(env(safe-area-inset-bottom, 0px) + 72px)',
+                background: `linear-gradient(135deg, var(--accent), rgba(var(--accent-rgb), 0.8))`,
+                right: '20px',
+                bottom: 'calc(env(safe-area-inset-bottom, 0px) + 78px)',
                 minHeight: 'unset',
+                borderRadius: 'var(--radius-lg)',
+                boxShadow: 'var(--shadow-accent)',
               }}
             >
-              <Plus size={26} strokeWidth={2.5} />
+              <Plus size={24} strokeWidth={2.5} />
             </motion.button>
           )}
         </AnimatePresence>
 
-        {/* ── BOTTOM NAV ── */}
-        <nav className="fixed bottom-0 left-0 right-0 z-30 glass-premium"
+        {/* ── BOTTOM NAV — Floating pill (iOS 19 × M3) ── */}
+        <nav className="fixed bottom-0 left-0 right-0 z-30 px-4 glass-premium"
           style={{ paddingBottom: 'env(safe-area-inset-bottom, 8px)' }}
         >
-          <div className="flex items-center justify-around px-1 pt-1 pb-1">
+          <div className="flex items-center justify-around py-1.5">
             {tabs.map(tab => {
               const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className="flex flex-col items-center gap-0.5 flex-1 py-2 rounded-xl transition-colors relative"
+                  className="flex flex-col items-center gap-0.5 flex-1 py-2 relative"
                   style={{
                     color: isActive ? 'var(--accent)' : 'var(--text-tertiary)',
                     minHeight: 'unset',
@@ -690,16 +694,31 @@ export default function Home() {
                 >
                   {isActive && (
                     <motion.div
-                      layoutId="tab-bg"
-                      className="absolute inset-0 rounded-xl"
-                      style={{ background: 'var(--accent-soft)' }}
-                      transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+                      layoutId="tab-pill"
+                      className="absolute -top-0.5 w-12 h-[3px]"
+                      style={{
+                        background: 'var(--accent)',
+                        borderRadius: 'var(--radius-full)',
+                        boxShadow: '0 2px 12px rgba(var(--accent-rgb), 0.4)',
+                      }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                     />
                   )}
-                  <div className="relative z-10">
+                  <motion.div
+                    className="relative z-10 w-10 h-8 flex items-center justify-center"
+                    style={{
+                      borderRadius: 'var(--radius-full)',
+                      background: isActive ? 'var(--accent-soft)' : 'transparent',
+                    }}
+                    animate={{
+                      scale: isActive ? 1 : 0.95,
+                      backgroundColor: isActive ? 'var(--accent-soft)' : 'transparent',
+                    }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+                  >
                     <motion.span
                       className="flex items-center justify-center"
-                      animate={{ scale: isActive ? 1.1 : 1 }}
+                      animate={{ scale: isActive ? 1.05 : 1, y: isActive ? -1 : 0 }}
                       transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                     >
                       {tab.icon}
@@ -709,14 +728,18 @@ export default function Home() {
                         key={pendingCount}
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
-                        className="absolute -top-1 -right-2 text-white text-[9px] font-bold px-1 rounded-full min-w-[14px] text-center"
-                        style={{ background: 'var(--accent)', minHeight: 'unset' }}
+                        className="absolute -top-1 -right-1.5 text-white text-[8px] font-bold px-1 rounded-full min-w-[14px] text-center"
+                        style={{ background: 'var(--danger)', minHeight: 'unset', boxShadow: '0 2px 6px rgba(248,113,113,0.4)' }}
                       >
                         {pendingCount}
                       </motion.span>
                     )}
-                  </div>
-                  <span className="text-[9px] font-bold tracking-wide relative z-10">{tab.label}</span>
+                  </motion.div>
+                  <motion.span
+                    className="text-[9px] font-semibold tracking-wide relative z-10"
+                    animate={{ opacity: isActive ? 1 : 0.6, fontWeight: isActive ? 700 : 500 }}
+                    transition={{ duration: 0.2 }}
+                  >{tab.label}</motion.span>
                 </button>
               );
             })}
