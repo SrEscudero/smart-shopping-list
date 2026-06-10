@@ -85,16 +85,14 @@ export default function Dashboard() {
         className={`relative overflow-hidden p-6 mesh-gradient transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}
         style={{
           background: 'var(--bg-card)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-xl)',
-          boxShadow: 'var(--shadow-lg)',
+          border: '1px solid var(--border-strong)',
+          borderRadius: 'var(--radius-lg)',
+          boxShadow: 'var(--shadow-md)',
         }}
       >
-        {/* Floating orb */}
-        <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full pointer-events-none"
-          style={{ background: `radial-gradient(circle, rgba(var(--accent-rgb), 0.2) 0%, transparent 70%)`, filter: 'blur(40px)' }} />
-        <div className="absolute -bottom-20 -left-10 w-40 h-40 rounded-full pointer-events-none"
-          style={{ background: `radial-gradient(circle, rgba(168, 85, 247, 0.1) 0%, transparent 70%)`, filter: 'blur(30px)' }} />
+        {/* Subtle accent gradient */}
+        <div className="absolute top-0 right-0 w-64 h-32 rounded-full pointer-events-none opacity-30"
+          style={{ background: `radial-gradient(ellipse, rgba(var(--accent-rgb), 0.08) 0%, transparent 70%)`, filter: 'blur(40px)' }} />
 
         <div className="relative z-10 flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
