@@ -35,6 +35,14 @@ const THEME_OPTIONS: { id: ThemeMode; label: string; icon: React.ReactNode }[] =
   { id: 'auto', label: 'Auto', icon: <Monitor size={14} /> },
 ];
 
+function getGreeting(): string {
+  const h = new Date().getHours();
+  if (h < 6) return '🌙 Buenas noches';
+  if (h < 12) return '☀️ Buenos días';
+  if (h < 18) return '🌤️ Buenas tardes';
+  return '🌙 Buenas noches';
+}
+
 export default function Dashboard() {
   const {
     items, totalBudget, month, theme, accentColor, shoppingMode, currency, listDensity,
@@ -74,15 +82,11 @@ export default function Dashboard() {
   const circumference = 2 * Math.PI * radius;
   const strokeDash = (progress / 100) * circumference;
 
-  const effectiveTheme = theme === 'auto'
-    ? (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-    : theme;
-
   return (
     <div className="space-y-5">
-      {/* ═══ HERO CARD — Mesh gradient ═══ */}
+      {/* ═══ HERO CARD — Animated Mesh Gradient ═══ */}
       <div
-        className={`relative overflow-hidden p-6 mesh-gradient transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}
+        className={`relative overflow-hidden p-6 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}
         style={{
           background: 'var(--bg-card)',
           border: '1px solid var(--border-strong)',
@@ -90,12 +94,17 @@ export default function Dashboard() {
           boxShadow: 'var(--shadow-md)',
         }}
       >
-        {/* Subtle accent gradient */}
-        <div className="absolute top-0 right-0 w-64 h-32 rounded-full pointer-events-none opacity-30"
-          style={{ background: `radial-gradient(ellipse, rgba(var(--accent-rgb), 0.08) 0%, transparent 70%)`, filter: 'blur(40px)' }} />
+        {/* Animated gradient blobs */}
+        <div className="absolute -top-20 -right-20 w-60 h-60 pointer-events-none animate-morph animate-glow-pulse"
+          style={{ background: `radial-gradient(ellipse, rgba(var(--accent-rgb), 0.12) 0%, transparent 70%)` }} />
+        <div className="absolute -bottom-16 -left-16 w-48 h-48 pointer-events-none animate-morph animate-glow-pulse"
+          style={{ background: `radial-gradient(ellipse, rgba(var(--accent-rgb), 0.06) 0%, transparent 70%)`, animationDelay: '4s' }} />
 
         <div className="relative z-10 flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
+            {/* Greeting */}
+            <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>{getGreeting()}</p>
+
             {/* Month label */}
             {editingMonth ? (
               <div className="flex items-center gap-1.5 mb-2">
@@ -113,14 +122,14 @@ export default function Dashboard() {
               </button>
             )}
 
-            {/* Main number */}
+            {/* Main number with counter animation */}
             <h1 className="font-display font-900 leading-[0.9] tracking-tight" style={{ fontSize: 'clamp(2.2rem, 8vw, 3.2rem)' }}>
               {totalBudget > 0 ? (
                 <motion.span
                   key={remaining.toFixed(0)}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, ease: [0.32, 0.72, 0, 1] }}
+                  initial={{ opacity: 0, y: 16, filter: 'blur(4px)' }}
+                  animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                  transition={{ duration: 0.6, ease: [0.32, 0.72, 0, 1] }}
                   className={isOver ? 'text-red-400' : ''}
                   style={isOver ? {} : { color: 'var(--accent)' }}
                 >
@@ -136,7 +145,7 @@ export default function Dashboard() {
               </p>
             )}
 
-            {/* Mini stats row */}
+            {/* Mini stats row with stagger animation */}
             <div className="flex items-center gap-3 mt-5">
               {[
                 { value: pending, label: 'pendientes', color: 'var(--text-primary)' },
@@ -148,8 +157,8 @@ export default function Dashboard() {
                   <div className="min-w-0">
                     <motion.p
                       key={String(stat.value)}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
+                      initial={{ opacity: 0, y: 12, filter: 'blur(4px)' }}
+                      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
                       transition={{ duration: 0.5, delay: i * 0.1 }}
                       className="text-xl font-bold font-display leading-none"
                       style={{ color: stat.color }}
@@ -161,22 +170,27 @@ export default function Dashboard() {
             </div>
 
             {recurringCount > 0 && (
-              <div className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full text-[11px] font-semibold"
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full text-[11px] font-semibold"
                 style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
                 <Sparkles size={12} /> {recurringCount} recurrente{recurringCount > 1 ? 's' : ''}
-              </div>
+              </motion.div>
             )}
           </div>
 
-          {/* Progress ring */}
+          {/* Progress ring with gradient stroke */}
           <div className="relative flex-shrink-0 w-24 h-24">
             <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
               <circle cx="50" cy="50" r={radius} fill="none" strokeWidth="7"
                 stroke="var(--border)" strokeOpacity="0.8" />
-              <circle cx="50" cy="50" r={radius} fill="none" strokeWidth="7"
+              <motion.circle cx="50" cy="50" r={radius} fill="none" strokeWidth="7"
                 stroke="var(--accent)" strokeLinecap="round"
-                strokeDasharray={`${strokeDash} ${circumference}`}
-                style={{ transition: 'stroke-dasharray 1.2s cubic-bezier(0.32, 0.72, 0, 1)', filter: `drop-shadow(0 0 6px rgba(var(--accent-rgb), 0.3))` }} />
+                initial={{ strokeDasharray: `0 ${circumference}` }}
+                animate={{ strokeDasharray: `${strokeDash} ${circumference}` }}
+                transition={{ duration: 1.4, ease: [0.32, 0.72, 0, 1] }}
+                style={{ filter: `drop-shadow(0 0 8px rgba(var(--accent-rgb), 0.4))` }} />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <motion.span
@@ -190,7 +204,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Progress bar */}
+        {/* Progress bar with glow */}
         {totalItems > 0 && (
           <div className="relative mt-5 h-[5px] overflow-hidden" style={{ borderRadius: 'var(--radius-full)', background: 'var(--bg-elevated)' }}>
             <motion.div
@@ -237,7 +251,7 @@ export default function Dashboard() {
           whileHover={{ scale: 1.01 }}
           whileTap={{ scale: 0.98 }}
           onClick={toggleShoppingMode}
-          className="w-full relative overflow-hidden flex items-center gap-4 px-5 py-4 transition-all gradient-card"
+          className="w-full relative overflow-hidden flex items-center gap-4 px-5 py-4 transition-all card-glow"
           style={{
             background: 'var(--bg-card)',
             border: '1px solid var(--border)',

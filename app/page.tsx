@@ -19,8 +19,9 @@ import ShareModal from './components/ShareModal';
 import QuickAdd from './components/QuickAdd';
 import VoiceInput from './components/VoiceInput';
 import TemplatesModal from './components/TemplatesModal';
+import CommandPalette from './components/CommandPalette';
 import { DashboardSkeleton, ListSkeleton, StatsSkeleton } from './components/SkeletonLoaders';
-import { Home as HomeIcon, ClipboardList, BarChart3, CalendarDays, ShoppingCart, Camera, Plus, Download, Upload, AlertTriangle, CheckCircle2, Info, Search, X, PartyPopper, Undo2, Share2, Bookmark } from 'lucide-react';
+import { Home as HomeIcon, ClipboardList, BarChart3, CalendarDays, ShoppingCart, Camera, Plus, Download, Upload, AlertTriangle, CheckCircle2, Info, Search, X, PartyPopper, Undo2, Share2, Bookmark, Command } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -64,14 +65,23 @@ export default function Home() {
   const [showConfirmClear, setShowConfirmClear] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
-  // Hydration + onboarding
+  // Hydration + onboarding + keyboard shortcuts
   useEffect(() => {
     setHydrated(true);
     if (typeof window !== 'undefined' && !localStorage.getItem('onboarding_done')) {
       setShowOnboarding(true);
     }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowCommandPalette(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const handleOnboardingDone = () => {
@@ -310,6 +320,19 @@ export default function Home() {
         {/* TEMPLATES MODAL */}
         <TemplatesModal open={showTemplates} onClose={() => setShowTemplates(false)} />
 
+        {/* COMMAND PALETTE */}
+        <CommandPalette
+          open={showCommandPalette}
+          onClose={() => setShowCommandPalette(false)}
+          onNavigate={(tab) => setActiveTab(tab)}
+          onAction={(action) => {
+            if (action === 'add') { setActiveTab('list'); setShowAddForm(true); }
+            if (action === 'share') setShowShare(true);
+            if (action === 'export') exportToCSV();
+            if (action === 'templates') setShowTemplates(true);
+          }}
+        />
+
         {/* ── SHOPPING MODE OVERLAY HEADER ── */}
         {shoppingMode && (
           <div className="fixed top-0 left-0 right-0 z-40 animate-slide-up shadow-md"
@@ -359,6 +382,14 @@ export default function Home() {
                 <h1 className="text-base font-bold font-display leading-none truncate" style={{ color: 'var(--text-primary)' }}>Compras</h1>
                 <p className="text-xs mt-0.5 capitalize truncate" style={{ color: 'var(--text-secondary)' }}>{month}</p>
               </div>
+              <button
+                onClick={() => setShowCommandPalette(true)}
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-medium transition-all"
+                style={{ background: 'var(--bg-elevated)', color: 'var(--text-tertiary)', border: '1px solid var(--border)', minHeight: 'unset' }}
+                title="Ctrl+K"
+              >
+                <Command size={11} /> <span>Ctrl+K</span>
+              </button>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               {pendingCount > 0 && (

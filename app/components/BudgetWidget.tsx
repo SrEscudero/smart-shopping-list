@@ -4,6 +4,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useShoppingStore } from '../../store/useShoppingStore';
 import { Sun, Moon, Wallet } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface BudgetWidgetProps {
   compact?: boolean;
@@ -16,7 +17,6 @@ export default function BudgetWidget({ compact = false, full = false }: BudgetWi
   const [isEditing, setIsEditing] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
-  const isDark = theme === 'dark';
 
   useEffect(() => {
     if (isEditing && inputRef.current) inputRef.current.focus();
@@ -40,7 +40,7 @@ export default function BudgetWidget({ compact = false, full = false }: BudgetWi
     return (
       <div className="flex items-center gap-2">
         {totalBudget > 0 && (
-          <div className={`flex flex-col items-end`}>
+          <div className="flex flex-col items-end">
             <span className={`text-xs font-medium ${isOver ? 'text-red-400' : 'text-green-400'}`}>
               {isOver ? '−' : '+'}{c} {Math.abs(remaining).toFixed(0)}
             </span>
@@ -48,10 +48,15 @@ export default function BudgetWidget({ compact = false, full = false }: BudgetWi
         )}
         <button
           onClick={toggleTheme}
-          className={`p-2 rounded-xl text-sm ${isDark ? 'bg-white/5 text-yellow-400' : 'bg-gray-100 text-gray-600'}`}
+          className="p-2 rounded-xl text-sm transition-all"
+          style={{
+            background: 'var(--bg-elevated)',
+            color: theme === 'dark' ? '#FBBF24' : 'var(--text-secondary)',
+            border: '1px solid var(--border)',
+          }}
           title="Cambiar tema"
         >
-          {isDark ? <Sun size={16} /> : <Moon size={16} />}
+          {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
         </button>
       </div>
     );
@@ -60,74 +65,95 @@ export default function BudgetWidget({ compact = false, full = false }: BudgetWi
   // FULL - card with progress bar
   if (full) {
     return (
-      <div className={`${isDark ? 'bg-[#13131A]' : 'bg-white'} rounded-2xl border ${isDark ? 'border-white/5' : 'border-gray-200'} p-4 space-y-3`}>
+      <div
+        className="rounded-2xl p-4 space-y-3 card-glow"
+        style={{
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-strong)',
+        }}
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-[var(--text-secondary)]"><Wallet size={18} /></span>
-            <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-800'}`}>Presupuesto</span>
+            <span style={{ color: 'var(--text-secondary)' }}><Wallet size={18} /></span>
+            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Presupuesto</span>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => { setInputValue(totalBudget.toString()); setIsEditing(!isEditing); }}
-              className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${isDark ? 'bg-white/5 text-gray-400 hover:text-white' : 'bg-gray-100 text-gray-500 hover:text-gray-800'}`}
-            >
-              {isEditing ? 'Cancelar' : 'Editar'}
-            </button>
-          </div>
+          <button
+            onClick={() => { setInputValue(totalBudget.toString()); setIsEditing(!isEditing); }}
+            className="text-xs px-3 py-1.5 rounded-lg font-medium transition-all"
+            style={{
+              background: 'var(--bg-elevated)',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            {isEditing ? 'Cancelar' : 'Editar'}
+          </button>
         </div>
 
         {isEditing ? (
           <div className="flex items-center gap-2">
-            <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{c}</span>
+            <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{c}</span>
             <input
               ref={inputRef}
               type="number"
               placeholder="0.00"
-              className={`flex-1 text-2xl font-bold bg-transparent focus:outline-none ${isDark ? 'text-white' : 'text-gray-900'}`}
+              className="flex-1 text-2xl font-bold bg-transparent focus:outline-none"
+              style={{ color: 'var(--text-primary)' }}
               value={inputValue}
               onChange={e => setInputValue(e.target.value)}
               onBlur={handleSave}
               onKeyDown={e => e.key === 'Enter' && handleSave()}
             />
-            <button onClick={handleSave} className="bg-blue-500 text-white px-4 py-1.5 rounded-xl text-sm font-semibold">
+            <button onClick={handleSave} className="text-white px-4 py-1.5 rounded-xl text-sm font-semibold"
+              style={{ background: 'var(--accent)' }}>
               Guardar
             </button>
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-3">
-            <div className={`${isDark ? 'bg-white/5' : 'bg-gray-50'} rounded-xl p-3`}>
-              <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'} mb-1`}>Presupuesto</p>
-              <p className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            <div className="rounded-xl p-3" style={{ background: 'var(--bg-elevated)' }}>
+              <p className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>Presupuesto</p>
+              <p className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
                 {c} {totalBudget > 0 ? totalBudget.toFixed(0) : '—'}
               </p>
             </div>
-            <div className={`${isDark ? 'bg-white/5' : 'bg-gray-50'} rounded-xl p-3`}>
-              <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'} mb-1`}>Estimado</p>
-              <p className={`text-base font-bold ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>
+            <div className="rounded-xl p-3" style={{ background: 'var(--bg-elevated)' }}>
+              <p className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>Estimado</p>
+              <p className="text-base font-bold" style={{ color: 'var(--accent)' }}>
                 {c} {totalEstimated.toFixed(0)}
               </p>
             </div>
-            <div className={`${isOver ? 'bg-red-500/10' : isDark ? 'bg-green-500/10' : 'bg-green-50'} rounded-xl p-3`}>
-              <p className={`text-xs ${isOver ? 'text-red-400' : isDark ? 'text-green-400' : 'text-green-600'} mb-1`}>
+            <div className="rounded-xl p-3" style={{ background: isOver ? 'var(--danger-soft)' : 'var(--success-soft)' }}>
+              <p className="text-xs mb-1" style={{ color: isOver ? 'var(--danger)' : 'var(--success)' }}>
                 {isOver ? 'Excedido' : 'Disponible'}
               </p>
-              <p className={`text-base font-bold ${isOver ? 'text-red-400' : isDark ? 'text-green-400' : 'text-green-600'}`}>
+              <p className="text-base font-bold" style={{ color: isOver ? 'var(--danger)' : 'var(--success)' }}>
                 {totalBudget > 0 ? `${c} ${Math.abs(remaining).toFixed(0)}` : '—'}
               </p>
             </div>
           </div>
         )}
 
-        {/* Progress bar */}
+        {/* Animated progress bar */}
         {totalBudget > 0 && !isEditing && (
           <div>
-            <div className={`w-full h-2 ${isDark ? 'bg-white/5' : 'bg-gray-100'} rounded-full overflow-hidden`}>
-              <div
-                className={`h-full rounded-full transition-all duration-700 ${isOver ? 'bg-red-500' : progress > 80 ? 'bg-orange-500' : 'bg-blue-500'}`}
-                style={{ width: `${progress}%` }}
+            <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: 'var(--bg-elevated)' }}>
+              <motion.div
+                className="h-full rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${progress}%` }}
+                transition={{ duration: 0.8, ease: [0.32, 0.72, 0, 1] }}
+                style={{
+                  background: isOver
+                    ? 'var(--danger)'
+                    : progress > 80
+                      ? 'var(--warning)'
+                      : `linear-gradient(90deg, var(--accent), rgba(var(--accent-rgb), 0.7))`,
+                  boxShadow: `0 0 8px rgba(var(--accent-rgb), 0.3)`,
+                }}
               />
             </div>
-            <div className={`flex justify-between mt-1 text-xs ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+            <div className="flex justify-between mt-1 text-xs" style={{ color: 'var(--text-tertiary)' }}>
               <span>{progress.toFixed(0)}% usado</span>
               <span>{c} {totalSpent.toFixed(2)} gastado</span>
             </div>
