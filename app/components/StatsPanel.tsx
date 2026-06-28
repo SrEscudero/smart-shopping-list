@@ -12,7 +12,7 @@ const stagger = {
   container: { animate: { transition: { staggerChildren: 0.06 } } },
   item: {
     initial: { opacity: 0, y: 16, scale: 0.96 },
-    animate: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.4, ease: [0.32, 0.72, 0, 1] } },
+    animate: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.4, ease: [0.32, 0.72, 0, 1] as const } },
   },
 };
 

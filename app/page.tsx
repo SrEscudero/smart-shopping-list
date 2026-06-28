@@ -366,22 +366,32 @@ export default function Home() {
 
         {/* ── HEADER ── */}
         <header
-          className="sticky z-30 glass-premium transition-all"
+          className="sticky z-30 transition-all"
           style={{
             top: shoppingMode ? '52px' : 0,
-            paddingTop: shoppingMode ? 0 : 'env(safe-area-inset-top, 0px)'
+            paddingTop: shoppingMode ? 0 : 'env(safe-area-inset-top, 0px)',
+            background: 'var(--bg)',
+            borderBottom: '1px solid var(--border)',
           }}
         >
-          <div className="px-4 py-3 flex items-center justify-between gap-3">
+          <div className="max-w-2xl mx-auto px-5 py-3.5 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-[var(--accent)]"
-                style={{ background: 'var(--accent-soft)' }}>
-                <ShoppingCart size={20} strokeWidth={2.5} />
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-base font-bold font-display leading-none truncate" style={{ color: 'var(--text-primary)' }}>Compras</h1>
-                <p className="text-xs mt-0.5 capitalize truncate" style={{ color: 'var(--text-secondary)' }}>{month}</p>
-              </div>
+              <h1 className="text-lg font-display leading-none truncate" style={{ color: 'var(--text-primary)' }}>Compras</h1>
+              <span className="text-[11px] font-medium px-2.5 py-1 rounded-full capitalize" style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>{month}</span>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {pendingCount > 0 && (
+                <motion.span
+                  key={pendingCount}
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="text-white text-[11px] font-semibold w-6 h-6 flex items-center justify-center rounded-full"
+                  style={{ background: 'var(--accent)', minHeight: 'unset' }}
+                >
+                  {pendingCount}
+                </motion.span>
+              )}
+              <BudgetWidget compact />
               <button
                 onClick={() => setShowCommandPalette(true)}
                 className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-medium transition-all"
@@ -391,46 +401,42 @@ export default function Home() {
                 <Command size={11} /> <span>Ctrl+K</span>
               </button>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {pendingCount > 0 && (
-                <motion.span
-                  key={pendingCount}
-                  initial={{ scale: 0.5, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  className="text-white text-xs font-bold px-2 py-0.5 rounded-full"
-                  style={{ background: 'var(--accent)' }}
-                >
-                  {pendingCount}
-                </motion.span>
-              )}
-              <BudgetWidget compact />
-            </div>
           </div>
         </header>
 
-        {/* ── TABS ── */}
-        <div className="sticky z-20 glass-premium"
-          style={{ top: shoppingMode ? '104px' : '52px' }}
-        >
-          <div className="px-3">
-            <div className="flex gap-1 py-2 overflow-x-auto scrollbar-hide">
-              {tabs.map(tab => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all flex-shrink-0 font-display btn-ripple"
-                  style={activeTab === tab.id
-                    ? { background: 'var(--accent)', color: '#fff', boxShadow: '0 2px 8px var(--accent-glow)', minHeight: 'unset' }
-                    : { color: 'var(--text-secondary)', background: 'transparent', minHeight: 'unset' }
-                  }>
-                  <span className="flex items-center justify-center">{tab.icon}</span>
-                  <span>{tab.label}</span>
-                </button>
-              ))}
+        {/* ── TABS (inline, no sticky) ── */}
+        <div style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+          <div className="max-w-2xl mx-auto px-5">
+            <div className="flex gap-0 overflow-x-auto scrollbar-hide">
+              {tabs.map(tab => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                    className="relative flex items-center gap-1.5 px-4 py-3 text-[13px] font-medium transition-colors flex-shrink-0"
+                    style={{
+                      color: isActive ? 'var(--accent)' : 'var(--text-tertiary)',
+                      minHeight: 'unset',
+                    }}
+                  >
+                    <span className="flex items-center justify-center">{tab.icon}</span>
+                    <span>{tab.label}</span>
+                    {isActive && (
+                      <motion.div
+                        layoutId="tab-underline"
+                        className="absolute bottom-0 left-2 right-2 h-[2px]"
+                        style={{ background: 'var(--accent)', borderRadius: '2px 2px 0 0' }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                      />
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
 
         {/* ── CONTENT ── */}
-        <main className="px-3 pb-32 pt-3 space-y-4">
+        <main className="max-w-2xl mx-auto px-4 pb-32 pt-4 space-y-4">
           <AnimatePresence mode="wait">
             {/* HOME TAB */}
             {activeTab === 'home' && (
@@ -706,71 +712,42 @@ export default function Home() {
           )}
         </AnimatePresence>
 
-        {/* ── BOTTOM NAV — Floating pill (iOS 19 × M3) ── */}
-        <nav className="fixed bottom-0 left-0 right-0 z-30 px-4 glass-premium"
-          style={{ paddingBottom: 'env(safe-area-inset-bottom, 8px)' }}
+        {/* ── BOTTOM NAV ── */}
+        <nav className="fixed bottom-0 left-0 right-0 z-30"
+          style={{
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+            background: 'var(--bg)',
+            borderTop: '1px solid var(--border)',
+          }}
         >
-          <div className="flex items-center justify-around py-1.5">
+          <div className="max-w-2xl mx-auto flex items-center justify-around py-1">
             {tabs.map(tab => {
               const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className="flex flex-col items-center gap-0.5 flex-1 py-2 relative"
+                  className="flex flex-col items-center gap-0.5 flex-1 py-2 relative transition-colors"
                   style={{
                     color: isActive ? 'var(--accent)' : 'var(--text-tertiary)',
                     minHeight: 'unset',
                   }}
                 >
-                  {isActive && (
-                    <motion.div
-                      layoutId="tab-pill"
-                      className="absolute -top-0.5 w-12 h-[3px]"
-                      style={{
-                        background: 'var(--accent)',
-                        borderRadius: 'var(--radius-full)',
-                        boxShadow: '0 2px 12px rgba(var(--accent-rgb), 0.4)',
-                      }}
-                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                    />
-                  )}
-                  <motion.div
-                    className="relative z-10 w-10 h-8 flex items-center justify-center"
-                    style={{
-                      borderRadius: 'var(--radius-full)',
-                      background: isActive ? 'var(--accent-soft)' : 'transparent',
-                    }}
-                    animate={{
-                      scale: isActive ? 1 : 0.95,
-                      backgroundColor: isActive ? 'var(--accent-soft)' : 'transparent',
-                    }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 22 }}
-                  >
-                    <motion.span
-                      className="flex items-center justify-center"
-                      animate={{ scale: isActive ? 1.05 : 1, y: isActive ? -1 : 0 }}
-                      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                    >
-                      {tab.icon}
-                    </motion.span>
+                  <span className="relative flex items-center justify-center w-10 h-7">
+                    {tab.icon}
                     {tab.id === 'list' && pendingCount > 0 && (
-                      <motion.span
-                        key={pendingCount}
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="absolute -top-1 -right-1.5 text-white text-[8px] font-bold px-1 rounded-full min-w-[14px] text-center"
-                        style={{ background: 'var(--danger)', minHeight: 'unset', boxShadow: '0 2px 6px rgba(248,113,113,0.4)' }}
+                      <span
+                        className="absolute -top-1 -right-1 text-white text-[8px] font-bold w-4 h-4 flex items-center justify-center rounded-full"
+                        style={{ background: 'var(--danger)', minHeight: 'unset' }}
                       >
                         {pendingCount}
-                      </motion.span>
+                      </span>
                     )}
-                  </motion.div>
-                  <motion.span
-                    className="text-[9px] font-semibold tracking-wide relative z-10"
-                    animate={{ opacity: isActive ? 1 : 0.6, fontWeight: isActive ? 700 : 500 }}
-                    transition={{ duration: 0.2 }}
-                  >{tab.label}</motion.span>
+                  </span>
+                  <span
+                    className="text-[10px] leading-none"
+                    style={{ fontWeight: isActive ? 600 : 400 }}
+                  >{tab.label}</span>
                 </button>
               );
             })}

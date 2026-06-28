@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300..800&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
 
 @import "tailwindcss";
 
@@ -106,8 +106,8 @@ html {
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  font-optical-sizing: auto;
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-weight: 400;
   background: var(--bg);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
@@ -117,9 +117,10 @@ body {
   min-height: -webkit-fill-available;
   -webkit-text-size-adjust: 100%;
   letter-spacing: -0.01em;
+  line-height: 1.5;
 }
 
-.font-display { font-family: 'Outfit', 'Inter', sans-serif; letter-spacing: -0.02em; }
+.font-display { font-family: 'Poppins', sans-serif; font-weight: 700; letter-spacing: -0.025em; }
 
 input, select, textarea { font-size: 16px !important; }
 button, a, [role="button"] { min-height: 44px; }
@@ -146,14 +147,12 @@ select { -webkit-appearance: none; appearance: none; cursor: pointer; }
 }
 
 .glass-premium {
-  background: var(--bg-frosted);
-  backdrop-filter: var(--blur-glass);
-  -webkit-backdrop-filter: var(--blur-glass);
-  border-top: 1px solid var(--border-strong);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
 }
 [data-theme="light"] .glass-premium {
-  background: rgba(255, 255, 255, 0.9);
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
 }
 
 .glass-card {
