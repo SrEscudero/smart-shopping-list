@@ -32,16 +32,17 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !price) return;
+    if (!name.trim()) return;
 
     const newId = uuidv4();
     const productName = name.trim();
+    const parsedPrice = price ? parseFloat(price) : 0;
 
     // Optimistic addition
     addProduct({
       id: newId,
       name: productName,
-      estimatedPrice: parseFloat(price),
+      estimatedPrice: isNaN(parsedPrice) ? 0 : parsedPrice,
       quantity: parseInt(quantity) || 1,
       category: 'Otros', // Default temporary
       store: storeName.trim() || 'Varias',
@@ -76,7 +77,7 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-[var(--bg-card)] border border-[var(--border)] p-4 rounded-2xl space-y-3">
+    <form onSubmit={handleSubmit} className="bg-[var(--bg-card)] border border-[var(--border)] p-4 rounded-2xl space-y-3 shadow-md">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2 font-display">
           <Pencil size={15} className="text-[var(--accent)]" /> Nuevo producto
@@ -113,17 +114,16 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
       {/* Price + Qty */}
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <label htmlFor="product-price" className="sr-only">Precio unitario</label>
+          <label htmlFor="product-price" className="sr-only">Precio unitario (opcional)</label>
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-tertiary)] font-medium">{c}</span>
           <input
             id="product-price"
-            type="number" step="0.01" min="0" placeholder="0,00"
+            type="number" step="0.01" min="0" placeholder="0,00 (opcional)"
             inputMode="decimal"
             className={`${smallInputCls} w-full pl-8 pr-2`}
             value={price}
             onChange={e => setPrice(e.target.value)}
-            required
-            aria-label={`Precio en ${c}`}
+            aria-label={`Precio opcional en ${c}`}
           />
         </div>
         <label htmlFor="product-qty" className="sr-only">Cantidad</label>
@@ -179,8 +179,8 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
         <VoiceInput onResult={handleVoiceResult} currency={c} />
         <button
           type="submit"
-          disabled={!name || !price}
-          className="flex-1 text-white font-bold py-3.5 rounded-xl transition-all disabled:opacity-40 flex items-center justify-center gap-2 text-sm"
+          disabled={!name.trim()}
+          className="flex-1 text-white font-bold py-3.5 rounded-xl transition-all disabled:opacity-40 flex items-center justify-center gap-2 text-sm shadow-md"
           style={{
             background: 'var(--accent)',
             boxShadow: '0 4px 16px var(--accent-glow)',
