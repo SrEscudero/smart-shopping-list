@@ -39,6 +39,7 @@ interface Props {
 
 const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, onUpdate, onUndoRemove, isDark, shoppingMode = false, isLast = false }: Props) {
     const currency = useShoppingStore(s => s.currency);
+    const soundEnabled = useShoppingStore(s => s.soundEnabled);
     const toggleRecurring = useShoppingStore(s => s.toggleRecurring);
     const addProduct = useShoppingStore(s => s.addProduct);
     const cur = currency || 'R$';
@@ -131,7 +132,7 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
     const handleToggle = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
         triggerHaptic(item.isPurchased ? 'light' : 'success');
-        if (!item.isPurchased) {
+        if (!item.isPurchased && soundEnabled) {
             playCheckSound();
         }
         if (!item.isPurchased && shoppingMode) {

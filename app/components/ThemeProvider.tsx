@@ -7,6 +7,7 @@ import { useShoppingStore } from '../../store/useShoppingStore';
 export default function ThemeProvider({ children }: { children: React.ReactNode }) {
   const theme = useShoppingStore(s => s.theme);
   const accentColor = useShoppingStore(s => s.accentColor);
+  const cardStyle = useShoppingStore(s => s.cardStyle);
   const shoppingMode = useShoppingStore(s => s.shoppingMode);
   const [hydrated, setHydrated] = useState(false);
 
@@ -16,6 +17,7 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
   useEffect(() => {
     const html = document.documentElement;
     html.setAttribute('data-accent', accentColor);
+    html.setAttribute('data-card-style', cardStyle || 'classic');
 
     if (theme === 'auto') {
       const mq = window.matchMedia('(prefers-color-scheme: dark)');
@@ -28,7 +30,7 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
     } else {
       html.setAttribute('data-theme', theme);
     }
-  }, [theme, accentColor]);
+  }, [theme, accentColor, cardStyle]);
 
   // Wake Lock API — mantiene pantalla encendida en modo compras
   useEffect(() => {

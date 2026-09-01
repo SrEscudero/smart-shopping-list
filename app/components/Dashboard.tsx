@@ -2,24 +2,34 @@
 "use client";
 
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { useShoppingStore, CurrencySymbol, ListDensity, ThemeMode } from '../../store/useShoppingStore';
-import { ShoppingCart, Sun, Moon, Monitor, Palette, ChevronDown, Pencil, Check, X, DollarSign, LayoutList, Sparkles, Clock } from 'lucide-react';
+import { useShoppingStore, CurrencySymbol, ListDensity, ThemeMode, CardStyle } from '../../store/useShoppingStore';
+import { ShoppingCart, Sun, Moon, Monitor, Palette, ChevronDown, Pencil, Check, X, DollarSign, LayoutList, Sparkles, Clock, Layers, Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import BackupRestore from './BackupRestore';
 
 const ACCENT_OPTIONS = [
-  { id: 'blue',   label: 'Índigo',   hex: '#6366F1' },
-  { id: 'green',  label: 'Esmeralda',hex: '#10B981' },
-  { id: 'orange', label: 'Ámbar',    hex: '#F59E0B' },
-  { id: 'pink',   label: 'Rosa',     hex: '#EC4899' },
-  { id: 'purple', label: 'Violeta',  hex: '#A855F7' },
-  { id: 'teal',   label: 'Cian',     hex: '#06B6D4' },
-  { id: 'slate',  label: 'Pizarra',  hex: '#64748B' },
-  { id: 'copper', label: 'Cobre',    hex: '#C2956B' },
-  { id: 'sage',   label: 'Salvia',   hex: '#6B8F71' },
-  { id: 'coral',  label: 'Coral',    hex: '#E07A5F' },
-  { id: 'navy',   label: 'Naval',    hex: '#3D5A80' },
+  { id: 'slate',      label: 'Pizarra',    hex: '#64748B' },
+  { id: 'monochrome', label: 'Monocromo',  hex: '#27272A' },
+  { id: 'titanium',   label: 'Titanio',    hex: '#71717A' },
+  { id: 'copper',     label: 'Cobre',      hex: '#C2956B' },
+  { id: 'gold',       label: 'Oro',        hex: '#C5A059' },
+  { id: 'rose',       label: 'Rosa Taupe', hex: '#D48C8C' },
+  { id: 'sage',       label: 'Salvia',     hex: '#6B8F71' },
+  { id: 'coral',      label: 'Coral',      hex: '#E07A5F' },
+  { id: 'navy',       label: 'Naval',      hex: '#3D5A80' },
+  { id: 'blue',       label: 'Índigo',     hex: '#6366F1' },
+  { id: 'green',      label: 'Esmeralda',  hex: '#10B981' },
+  { id: 'orange',     label: 'Ámbar',      hex: '#F59E0B' },
+  { id: 'pink',       label: 'Magenta',    hex: '#EC4899' },
+  { id: 'purple',     label: 'Violeta',    hex: '#A855F7' },
+  { id: 'teal',       label: 'Cian',       hex: '#06B6D4' },
 ] as const;
+
+const CARD_STYLE_OPTIONS: { id: CardStyle; label: string; desc: string }[] = [
+  { id: 'classic', label: 'Clásico Elevado', desc: 'Sombra suave y bordes pulidos' },
+  { id: 'minimal', label: 'Minimal Plano', desc: 'Bordes finos sin sombra' },
+  { id: 'glass', label: 'Cristal Blur', desc: 'Vidrio translúcido' },
+];
 
 const CURRENCY_OPTIONS: { id: CurrencySymbol; label: string }[] = [
   { id: 'R$', label: 'R$ Real' }, { id: '$', label: '$ Dólar' }, { id: '€', label: '€ Euro' },
@@ -50,13 +60,14 @@ function getGreeting(): { text: string; period: string } {
 
 export default function Dashboard() {
   const {
-    items, totalBudget, month, theme, accentColor, shoppingMode, currency, listDensity,
-    setTheme, setAccentColor, toggleShoppingMode, setMonth, setCurrency, setListDensity
+    items, totalBudget, month, theme, accentColor, shoppingMode, currency, listDensity, cardStyle, soundEnabled,
+    setTheme, setAccentColor, toggleShoppingMode, setMonth, setCurrency, setListDensity, setCardStyle, toggleSound
   } = useShoppingStore();
   const [mounted, setMounted] = useState(false);
   const [showAccentPicker, setShowAccentPicker] = useState(false);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [showDensityPicker, setShowDensityPicker] = useState(false);
+  const [showCardStylePicker, setShowCardStylePicker] = useState(false);
   const [editingMonth, setEditingMonth] = useState(false);
   const [monthValue, setMonthValue] = useState(month);
   const monthInputRef = useRef<HTMLInputElement>(null);
@@ -389,6 +400,63 @@ export default function Dashboard() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Card Style Preset */}
+        <button onClick={() => setShowCardStylePicker(!showCardStylePicker)} className="ios-list-item w-full text-left">
+          <div className="btn-icon" style={{ width: 40, height: 40, minHeight: 'unset', border: 'none', background: 'var(--bg-elevated)' }}>
+            <Layers size={18} />
+          </div>
+          <span className="text-sm font-semibold flex-1">Estilo de tarjetas</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold capitalize text-[var(--accent)]">
+              {CARD_STYLE_OPTIONS.find(c => c.id === cardStyle)?.label || 'Clásico'}
+            </span>
+            <motion.div animate={{ rotate: showCardStylePicker ? 180 : 0 }}>
+              <ChevronDown size={16} style={{ color: 'var(--text-tertiary)' }} />
+            </motion.div>
+          </div>
+        </button>
+        <AnimatePresence>
+          {showCardStylePicker && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+              className="px-4 pb-3 space-y-1.5 overflow-hidden">
+              {CARD_STYLE_OPTIONS.map((opt, i) => (
+                <motion.button key={opt.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
+                  onClick={() => { setCardStyle(opt.id); setShowCardStylePicker(false); }}
+                  className={`chip w-full justify-between ${cardStyle === opt.id ? 'chip-active' : ''}`}
+                  style={{ minHeight: 'unset', padding: '12px 16px' }}>
+                  <div>
+                    <span className="text-sm font-semibold">{opt.label}</span>
+                    <span className="text-[10px] ml-2 opacity-60 block text-left">{opt.desc}</span>
+                  </div>
+                  {cardStyle === opt.id && <Check size={14} />}
+                </motion.button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Sound FX Toggle */}
+        <div className="ios-list-item">
+          <div className="btn-icon" style={{ width: 40, height: 40, minHeight: 'unset', border: 'none', background: 'var(--bg-elevated)' }}>
+            {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+          </div>
+          <div className="flex-1">
+            <span className="text-sm font-semibold block">Efectos de sonido</span>
+            <span className="text-[11px] text-[var(--text-tertiary)] block">Sonido al completar ítems</span>
+          </div>
+          <button
+            onClick={toggleSound}
+            className={`w-12 h-7 rounded-full p-1 transition-colors relative flex items-center ${soundEnabled ? 'bg-[var(--accent)]' : 'bg-gray-500/30'}`}
+            style={{ minHeight: 'unset' }}
+          >
+            <motion.div
+              animate={{ x: soundEnabled ? 20 : 0 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              className="w-5 h-5 rounded-full bg-white shadow-md"
+            />
+          </button>
+        </div>
       </div>
 
       {/* ═══ BACKUP/RESTORE ═══ */}

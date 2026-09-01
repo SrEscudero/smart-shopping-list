@@ -9,7 +9,8 @@ export type BaseCategory =
   | 'Despensa' | 'Congelados' | 'Mascotas' | 'Bebés'
   | 'Electrónica' | 'Ropa' | 'Otros';
 
-export type AccentColor = 'blue' | 'green' | 'orange' | 'pink' | 'purple' | 'teal' | 'slate' | 'copper' | 'sage' | 'coral' | 'navy';
+export type AccentColor = 'blue' | 'green' | 'orange' | 'pink' | 'purple' | 'teal' | 'slate' | 'copper' | 'sage' | 'coral' | 'navy' | 'monochrome' | 'gold' | 'rose' | 'titanium';
+export type CardStyle = 'classic' | 'minimal' | 'glass';
 export type ListDensity = 'compact' | 'normal' | 'spacious';
 export type CurrencySymbol = 'R$' | '$' | '€' | '£' | '¥' | 'CLP' | 'ARS' | 'COP' | 'MXN' | 'PEN' | 'UYU';
 export type ThemeMode = 'dark' | 'light' | 'auto';
@@ -57,6 +58,8 @@ export interface ShoppingStore {
   history: MonthHistory[];
   currency: CurrencySymbol;
   listDensity: ListDensity;
+  cardStyle: CardStyle;
+  soundEnabled: boolean;
 
   // Multiple lists
   lists: ShoppingList[];
@@ -73,6 +76,8 @@ export interface ShoppingStore {
   setMonth: (name: string) => void;
   setCurrency: (currency: CurrencySymbol) => void;
   setListDensity: (density: ListDensity) => void;
+  setCardStyle: (style: CardStyle) => void;
+  toggleSound: () => void;
   addProduct: (product: Omit<Product, 'id' | 'isPurchased' | 'addedAt'> & { id?: string }) => void;
   addMultipleProducts: (products: Omit<Product, 'id' | 'isPurchased' | 'addedAt'>[]) => void;
   toggleProduct: (id: string, finalPrice?: number) => void;
@@ -136,6 +141,8 @@ export const useShoppingStore = create<ShoppingStore>()(
       history: [],
       currency: 'R$',
       listDensity: 'normal',
+      cardStyle: 'classic',
+      soundEnabled: true,
       lists: [],
       activeListId: null,
       _undoStack: [],
@@ -146,6 +153,8 @@ export const useShoppingStore = create<ShoppingStore>()(
       setMonth: (name) => set({ month: name }),
       setCurrency: (currency) => set({ currency }),
       setListDensity: (density) => set({ listDensity: density }),
+      setCardStyle: (style) => set({ cardStyle: style }),
+      toggleSound: () => set((s) => ({ soundEnabled: !s.soundEnabled })),
       toggleTheme: () => set((s) => ({
         theme: s.theme === 'dark' ? 'light' : s.theme === 'light' ? 'auto' : 'dark'
       })),
