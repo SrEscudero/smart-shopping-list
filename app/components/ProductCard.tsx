@@ -9,6 +9,7 @@ import { CATEGORY_CONFIG, ALL_CATEGORIES } from '../../utils/constants';
 import { triggerHaptic } from '../../utils/haptic';
 import { Trash2, X, RefreshCw, Copy, Pencil } from 'lucide-react';
 import { useFocusTrap, useEscapeKey } from '../../utils/focusTrap';
+import { playCheckSound } from '../../utils/sound';
 
 function triggerConfetti(x: number, y: number) {
     const colors = ['#FF453A', '#30D158', '#FFD60A', '#0A84FF', '#BF5AF2', '#FF9F0A'];
@@ -130,6 +131,9 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
     const handleToggle = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
         triggerHaptic(item.isPurchased ? 'light' : 'success');
+        if (!item.isPurchased) {
+            playCheckSound();
+        }
         if (!item.isPurchased && shoppingMode) {
             // Show final price input instead of immediately toggling
             setShowFinalPrice(true);
