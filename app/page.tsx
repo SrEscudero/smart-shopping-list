@@ -20,6 +20,8 @@ import QuickAdd from './components/QuickAdd';
 import VoiceInput from './components/VoiceInput';
 import TemplatesModal from './components/TemplatesModal';
 import CommandPalette from './components/CommandPalette';
+import ListSelector from './components/ListSelector';
+import SpeedDialFAB from './components/SpeedDialFAB';
 import { DashboardSkeleton, ListSkeleton, StatsSkeleton } from './components/SkeletonLoaders';
 import { Home as HomeIcon, ClipboardList, BarChart3, CalendarDays, ShoppingCart, Camera, Plus, Download, Upload, AlertTriangle, CheckCircle2, Info, Search, X, Undo2, Share2, Bookmark, Command } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
@@ -53,6 +55,7 @@ export default function Home() {
   const c = currency || 'R$';
 
   const [filter, setFilter] = useState<'all' | 'pending' | 'purchased'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<'home' | 'list' | 'stats' | 'history'>('home');
   const [sortBy, setSortBy] = useState<'default' | 'price' | 'name' | 'category'>('default');
   const [showAddForm, setShowAddForm] = useState(false);
@@ -134,13 +137,18 @@ export default function Home() {
     }
   };
 
+  const availableCategories = useMemo(() => {
+    return Array.from(new Set(items.map(i => i.category))).sort();
+  }, [items]);
+
   const filtered = useMemo(() => {
     let result = items.filter(item => {
       const mf = filter === 'pending' ? !item.isPurchased : filter === 'purchased' ? item.isPurchased : true;
+      const mc = selectedCategory === 'all' || item.category === selectedCategory;
       const ms = !search || item.name.toLowerCase().includes(search.toLowerCase()) ||
         item.category.toLowerCase().includes(search.toLowerCase()) ||
         item.store.toLowerCase().includes(search.toLowerCase());
-      return mf && ms;
+      return mf && mc && ms;
     });
     if (sortBy === 'price') result = [...result].sort((a, b) => b.estimatedPrice * b.quantity - a.estimatedPrice * a.quantity);
     if (sortBy === 'name') result = [...result].sort((a, b) => a.name.localeCompare(b.name));
@@ -481,72 +489,97 @@ export default function Home() {
 
           {/* LIST TAB */}
           {activeTab === 'list' && (
-            <motion.div key="list" variants={tabVariants} initial="initial" animate="animate" exit="exit" className="space-y-4"
+            <motion.div key="list" variants={tabVariants} initial="initial" animate="animate" exit="exit" className="space-y-3.5"
               role="tabpanel" id="tabpanel-list" aria-labelledby="tab-list">
+
+              {/* Multi-list Selector */}
+              <ListSelector />
 
               {/* Shopping mode shortcut */}
               {!shoppingMode && items.length > 0 && (
                 <button onClick={toggleShoppingMode}
-                  className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl transition-all card-hover shadow-sm"
-                  style={{ background: 'var(--accent-soft)', border: '1px solid rgba(var(--accent-rgb),0.2)' }}>
-                  <ShoppingCart size={24} className="text-[var(--accent)]" />
+                  className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all card-hover shadow-sm"
+                  style={{ background: 'var(--accent-soft)', border: '1px solid rgba(var(--accent-rgb),0.2)', minHeight: 'unset' }}>
+                  <ShoppingCart size={22} className="text-[var(--accent)]" />
                   <span className="text-sm font-bold flex-1 text-left" style={{ color: 'var(--accent)' }}>
                     Activar Modo Compras
                   </span>
-                  <span className="text-xs px-3 py-1.5 rounded-xl font-bold uppercase tracking-wide" style={{ background: 'var(--accent)', color: '#fff' }}>
+                  <span className="text-xs px-3 py-1 rounded-xl font-bold uppercase tracking-wide" style={{ background: 'var(--accent)', color: '#fff' }}>
                     Iniciar
                   </span>
                 </button>
               )}
 
-              {/* Search + filters */}
-              <div className="rounded-2xl overflow-hidden shadow-sm gradient-card" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-                {/* Search */}
-                <div className="flex items-center gap-2 px-3 py-3" style={{ borderBottom: '1px solid var(--border)' }}>
-                  <button onClick={() => { setSearchOpen(!searchOpen); if (searchOpen) setSearch(''); }}
-                    className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all btn-ripple"
-                    style={{ background: searchOpen ? 'var(--accent-soft)' : 'transparent', color: searchOpen ? 'var(--accent)' : 'var(--text-tertiary)' }}
-                  >
-                    <Search size={18} />
-                  </button>
-                  {searchOpen ? (
-                    <div className="flex-1 flex items-center gap-2 search-expand">
-                      <input type="text" placeholder="Buscar producto, categoría o tienda..."
-                        className="flex-1 bg-transparent text-sm w-full focus:outline-none placeholder-opacity-60"
-                        style={{ color: 'var(--text-primary)' }}
-                        value={search} onChange={e => setSearch(e.target.value)} autoFocus />
-                      {search && (
-                        <button onClick={() => setSearch('')} className="p-1 rounded-full" style={{ color: 'var(--text-tertiary)' }}>
-                          <X size={16} />
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    <span className="text-sm flex-1" style={{ color: 'var(--text-tertiary)' }}>Buscar...</span>
+              {/* Search + status & category filters */}
+              <div className="rounded-2xl overflow-hidden shadow-sm" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                {/* Search input */}
+                <div className="flex items-center gap-2 px-3 py-2.5" style={{ borderBottom: '1px solid var(--border)' }}>
+                  <Search size={18} className="text-[var(--text-tertiary)] flex-shrink-0" />
+                  <input type="text" placeholder="Buscar producto, categoría o tienda..."
+                    className="flex-1 bg-transparent text-sm focus:outline-none placeholder-opacity-60"
+                    style={{ color: 'var(--text-primary)' }}
+                    value={search} onChange={e => setSearch(e.target.value)} />
+                  {search && (
+                    <button onClick={() => setSearch('')} className="p-1 rounded-full text-[var(--text-tertiary)]" style={{ minHeight: 'unset' }}>
+                      <X size={16} />
+                    </button>
                   )}
                 </div>
-                {/* Filters */}
-                <div className="flex items-center gap-2 px-3 py-2.5 overflow-x-auto scrollbar-hide">
+
+                {/* Status Filters & Sort */}
+                <div className="flex items-center gap-1.5 px-3 py-2 overflow-x-auto scrollbar-hide border-b border-[var(--border)]">
                   {(['all', 'pending', 'purchased'] as const).map(f => (
                     <button key={f} onClick={() => setFilter(f)}
-                      className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                      className="flex-shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all"
                       style={filter === f
-                        ? { background: 'var(--accent)', color: '#fff' }
-                        : { background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }
+                        ? { background: 'var(--accent)', color: '#fff', minHeight: 'unset' }
+                        : { background: 'var(--bg-elevated)', color: 'var(--text-secondary)', minHeight: 'unset' }
                       }>
                       {f === 'all' ? `Todos (${items.length})` : f === 'pending' ? `Pendientes (${items.filter(i => !i.isPurchased).length})` : `Comprados (${items.filter(i => i.isPurchased).length})`}
                     </button>
                   ))}
-                  <div className="w-px h-5 flex-shrink-0 mx-1" style={{ background: 'var(--border)' }} />
+                  <div className="w-px h-5 flex-shrink-0 mx-1 bg-[var(--border)]" />
                   <select value={sortBy} onChange={e => setSortBy(e.target.value as any)}
-                    className="flex-shrink-0 text-xs px-2 py-1.5 rounded-lg border-0 focus:outline-none font-semibold min-w-[110px]"
-                    style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', appearance: 'none' }}>
+                    className="flex-shrink-0 text-xs px-2.5 py-1.5 rounded-xl border-0 focus:outline-none font-semibold min-w-[110px]"
+                    style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', appearance: 'none', minHeight: 'unset' }}>
                     <option value="default">Orden Normal</option>
                     <option value="price">Mayor Precio</option>
                     <option value="name">Alfabético</option>
                     <option value="category">Categoría</option>
                   </select>
                 </div>
+
+                {/* Category Pills Filters */}
+                {availableCategories.length > 0 && (
+                  <div className="flex items-center gap-1.5 px-3 py-2 overflow-x-auto scrollbar-hide bg-[var(--bg-elevated)]/50">
+                    <button
+                      onClick={() => setSelectedCategory('all')}
+                      className="flex-shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all"
+                      style={selectedCategory === 'all'
+                        ? { background: 'var(--accent-soft)', color: 'var(--accent)', fontWeight: 700, minHeight: 'unset' }
+                        : { color: 'var(--text-tertiary)', minHeight: 'unset' }}
+                    >
+                      Todas cat.
+                    </button>
+                    {availableCategories.map(cat => {
+                      const isSel = selectedCategory === cat;
+                      const catColor = CATEGORY_CONFIG[cat]?.color || '#8E8E93';
+                      return (
+                        <button
+                          key={cat}
+                          onClick={() => setSelectedCategory(isSel ? 'all' : cat)}
+                          className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all"
+                          style={isSel
+                            ? { background: 'var(--accent)', color: '#ffffff', minHeight: 'unset' }
+                            : { background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)', minHeight: 'unset' }}
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: isSel ? '#fff' : catColor }} />
+                          {cat}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Action buttons */}
@@ -715,29 +748,14 @@ export default function Home() {
           </AnimatePresence>
         </main>
 
-        {/* ── FAB — Material You 2026 ── */}
+        {/* ── Speed Dial FAB ── */}
         <AnimatePresence>
-          {activeTab === 'list' && !showAddForm && (
-            <motion.button
-              initial={{ scale: 0, opacity: 0, rotate: -90 }}
-              animate={{ scale: 1, opacity: 1, rotate: 0 }}
-              exit={{ scale: 0, opacity: 0, rotate: 90 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 22 }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.92 }}
-              onClick={() => setShowAddForm(true)}
-              className="fixed z-30 w-14 h-14 flex items-center justify-center text-white fab-pulse"
-              style={{
-                background: `linear-gradient(135deg, var(--accent), rgba(var(--accent-rgb), 0.8))`,
-                right: '20px',
-                bottom: 'calc(env(safe-area-inset-bottom, 0px) + 78px)',
-                minHeight: 'unset',
-                borderRadius: 'var(--radius-lg)',
-                boxShadow: 'var(--shadow-accent)',
-              }}
-            >
-              <Plus size={24} strokeWidth={2.5} />
-            </motion.button>
+          {activeTab === 'list' && (
+            <SpeedDialFAB
+              onAddProduct={() => setShowAddForm(true)}
+              onScanCamera={() => setShowCamera(true)}
+              onOpenTemplates={() => setShowTemplates(true)}
+            />
           )}
         </AnimatePresence>
 
