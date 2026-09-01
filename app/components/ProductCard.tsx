@@ -1,13 +1,14 @@
 // app/components/ProductCard.tsx
 "use client";
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { Product } from '../../store/useShoppingStore';
 import { useShoppingStore } from '../../store/useShoppingStore';
 import { CATEGORY_CONFIG, ALL_CATEGORIES } from '../../utils/constants';
 import { triggerHaptic } from '../../utils/haptic';
-import { Trash2, X, RefreshCw } from 'lucide-react';
+import { Trash2, X, RefreshCw, Copy, Pencil } from 'lucide-react';
+import { useFocusTrap, useEscapeKey } from '../../utils/focusTrap';
 
 function triggerConfetti(x: number, y: number) {
     const colors = ['#FF453A', '#30D158', '#FFD60A', '#0A84FF', '#BF5AF2', '#FF9F0A'];
@@ -29,14 +30,16 @@ interface Props {
     onToggle: (id: string, finalPrice?: number) => void;
     onRemove: (id: string) => void;
     onUpdate: (id: string, data: Partial<Product>) => void;
+    onUndoRemove?: (message: string, undoFn: () => void) => void;
     isDark: boolean;
     shoppingMode?: boolean;
     isLast?: boolean;
 }
 
-const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, onUpdate, isDark, shoppingMode = false, isLast = false }: Props) {
+const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, onUpdate, onUndoRemove, isDark, shoppingMode = false, isLast = false }: Props) {
     const currency = useShoppingStore(s => s.currency);
     const toggleRecurring = useShoppingStore(s => s.toggleRecurring);
+    const addProduct = useShoppingStore(s => s.addProduct);
     const cur = currency || 'R$';
     const [showEdit, setShowEdit] = useState(false);
     const [justToggled, setJustToggled] = useState(false);
@@ -51,28 +54,73 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
     const [showFinalPrice, setShowFinalPrice] = useState(false);
     const [finalPriceInput, setFinalPriceInput] = useState('');
 
-    // Swipe to delete
-    const [startX, setStartX] = useState<number | null>(null);
+    // Swipe to delete (left) / edit (right) — #46, #22 throttle, #55 undo
     const [offsetX, setOffsetX] = useState(0);
     const [isDeleting, setIsDeleting] = useState(false);
+    const startXRef = useRef<number | null>(null);
+    const lastMoveRef = useRef(0);
 
-    const onTouchStart = (e: React.TouchEvent) => setStartX(e.touches[0].clientX);
+    const onTouchStart = (e: React.TouchEvent) => {
+        startXRef.current = e.touches[0].clientX;
+    };
     const onTouchMove = (e: React.TouchEvent) => {
-        if (startX !== null) {
-            const diff = e.touches[0].clientX - startX;
-            if (diff < 0) setOffsetX(Math.max(diff, -100));
-        }
+        if (startXRef.current === null) return;
+        // Throttle to ~60fps (#22)
+        const now = Date.now();
+        if (now - lastMoveRef.current < 16) return;
+        lastMoveRef.current = now;
+        const diff = e.touches[0].clientX - startXRef.current;
+        // Allow both directions: left for delete, right for edit
+        setOffsetX(Math.max(-100, Math.min(diff, 80)));
     };
     const onTouchEnd = () => {
         if (offsetX < -70) {
+            // Swipe left → delete with undo (#55)
             triggerHaptic('heavy');
             setIsDeleting(true);
-            setTimeout(() => onRemove(item.id), 300);
-        } else {
-            setOffsetX(0);
+            setTimeout(() => {
+                onRemove(item.id);
+                onUndoRemove?.(`"${item.name}" eliminado`, () => {
+                    addProduct({
+                        name: item.name,
+                        estimatedPrice: item.estimatedPrice,
+                        quantity: item.quantity,
+                        category: item.category,
+                        store: item.store,
+                        note: item.note,
+                        priority: item.priority,
+                        isRecurring: item.isRecurring,
+                    });
+                });
+            }, 300);
+        } else if (offsetX > 60) {
+            // Swipe right → open edit (#46)
+            triggerHaptic('light');
+            openEdit();
         }
-        setStartX(null);
+        setOffsetX(0);
+        startXRef.current = null;
     };
+
+    // Duplicate product (#37)
+    const handleDuplicate = useCallback(() => {
+        triggerHaptic('success');
+        addProduct({
+            name: item.name,
+            estimatedPrice: item.estimatedPrice,
+            quantity: item.quantity,
+            category: item.category,
+            store: item.store,
+            note: item.note,
+            priority: item.priority,
+            isRecurring: item.isRecurring,
+        });
+        setShowEdit(false);
+    }, [item, addProduct]);
+
+    // Focus trap for edit modal (#3)
+    const editFocusTrapRef = useFocusTrap(showEdit);
+    useEscapeKey(showEdit, () => setShowEdit(false));
 
     const cfg = CATEGORY_CONFIG[item.category] || CATEGORY_CONFIG['Otros'];
     const editCfg = CATEGORY_CONFIG[editCategory] || CATEGORY_CONFIG['Otros'];
@@ -223,8 +271,17 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
     return (
         <div className="relative overflow-hidden"
             style={{ transition: 'height 0.3s, opacity 0.3s', height: isDeleting ? 0 : 'auto', opacity: isDeleting ? 0 : 1 }}>
+            {/* Swipe left: delete indicator */}
             <div className="absolute inset-y-0 right-0 w-full bg-red-500 flex items-center justify-end px-6 text-white"
-                style={{ opacity: offsetX < -20 ? 1 : 0 }}><Trash2 size={22} /></div>
+                style={{ opacity: offsetX < -20 ? Math.min(1, Math.abs(offsetX) / 70) : 0, transition: 'opacity 0.1s' }}>
+                <Trash2 size={22} />
+            </div>
+            {/* Swipe right: edit indicator (#46) */}
+            <div className="absolute inset-y-0 left-0 w-full flex items-center px-6"
+                style={{ opacity: offsetX > 20 ? Math.min(1, offsetX / 60) : 0, transition: 'opacity 0.1s', color: 'var(--accent)', background: 'var(--accent-soft)' }}>
+                <Pencil size={20} />
+                <span className="ml-2 text-sm font-semibold">Editar</span>
+            </div>
             <div className="relative flex items-center gap-3 px-3 py-4 transition-all duration-200"
                 style={{ borderBottom: isLast ? 'none' : '1px solid var(--border)', opacity: item.isPurchased ? 0.5 : 1, transform: `translateX(${offsetX}px)`, background: 'var(--bg-card)' }}
                 onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
@@ -243,7 +300,7 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
                         {item.store && item.store !== 'Varias' && <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>· {item.store}</span>}
                         {item.note && <span className="text-xs italic" style={{ color: 'var(--text-tertiary)' }}>· {item.note}</span>}
                         {item.priority === 'alta' && <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold text-red-400 bg-red-500/10">URGENTE</span>}
-                        {item.isRecurring && <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold" style={{ color: 'var(--accent)', background: 'var(--accent-soft)' }}>🔄</span>}
+                        {item.isRecurring && <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold flex items-center gap-0.5" style={{ color: 'var(--accent)', background: 'var(--accent-soft)' }}><RefreshCw size={8} />REC</span>}
                     </div>
                 </div>
                 <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
@@ -262,11 +319,11 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
                 </button>
             </div>
 
-            {/* ── EDIT MODAL ── */}
+            {/* ── EDIT MODAL with focus trap (#3) ── */}
             {showEdit && typeof window !== 'undefined' && ReactDOM.createPortal(
                 <div className="fixed inset-0 flex flex-col justify-end" style={{ zIndex: 9999, touchAction: 'none' }}>
                     <div className="absolute inset-0 bg-black/60" style={{ backdropFilter: 'blur(4px)' }} onClick={() => setShowEdit(false)} />
-                    <div className="relative w-full flex flex-col animate-slide-up" style={{ background: isDark ? '#0D0D16' : '#FFFFFF', borderRadius: '20px 20px 0 0', maxHeight: '88svh', zIndex: 1 }}>
+                    <div ref={editFocusTrapRef} className="relative w-full flex flex-col animate-slide-up" style={{ background: isDark ? '#0D0D16' : '#FFFFFF', borderRadius: '20px 20px 0 0', maxHeight: '88svh', zIndex: 1 }} role="dialog" aria-modal="true" aria-label={`Editar ${item.name}`}>
                         <div className="flex justify-center pt-3 pb-1 flex-shrink-0"><div className="w-10 h-1 rounded-full" style={{ background: 'rgba(128,128,128,0.3)' }} /></div>
                         <div className="px-4 py-2 flex items-center gap-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
                             <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: editCfg.bg }}>{editCfg.icon}</div>
@@ -325,10 +382,16 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
                                 <span className="text-[10px] font-bold" style={{ color: item.isRecurring ? 'var(--accent)' : 'var(--text-tertiary)' }}>{item.isRecurring ? 'ON' : 'OFF'}</span>
                             </button>
                         </div>
-                        <div className="flex gap-3 px-4 py-3 flex-shrink-0" style={{ borderTop: '1px solid var(--border)', paddingBottom: 'max(env(safe-area-inset-bottom, 12px), 12px)' }}>
-                            <button onClick={() => { onRemove(item.id); setShowEdit(false); }} className="flex items-center gap-2 px-4 py-3.5 rounded-2xl text-sm font-semibold flex-shrink-0"
-                                style={{ background: 'rgba(255,69,58,0.12)', border: '1px solid rgba(255,69,58,0.25)', color: '#FF453A', minHeight: 'unset' }}>
-                                <Trash2 size={15} /><span>Eliminar</span>
+                        <div className="flex gap-2 px-4 py-3 flex-shrink-0" style={{ borderTop: '1px solid var(--border)', paddingBottom: 'max(env(safe-area-inset-bottom, 12px), 12px)' }}>
+                            <button onClick={() => { onRemove(item.id); setShowEdit(false); }} className="flex items-center gap-2 px-3 py-3.5 rounded-2xl text-sm font-semibold flex-shrink-0"
+                                style={{ background: 'rgba(255,69,58,0.12)', border: '1px solid rgba(255,69,58,0.25)', color: '#FF453A', minHeight: 'unset' }}
+                                aria-label="Eliminar producto">
+                                <Trash2 size={15} /><span className="hidden min-[360px]:inline">Eliminar</span>
+                            </button>
+                            <button onClick={handleDuplicate} className="flex items-center gap-2 px-3 py-3.5 rounded-2xl text-sm font-semibold flex-shrink-0"
+                                style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-secondary)', minHeight: 'unset' }}
+                                aria-label="Duplicar producto">
+                                <Copy size={15} /><span className="hidden min-[360px]:inline">Duplicar</span>
                             </button>
                             <button onClick={handleSave} className="flex-1 py-3.5 rounded-2xl text-white font-bold text-sm"
                                 style={{ background: 'var(--accent)', boxShadow: '0 4px 16px var(--accent-glow)', minHeight: 'unset' }}>Guardar</button>

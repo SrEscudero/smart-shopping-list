@@ -5,9 +5,8 @@ import { useShoppingStore } from '../../store/useShoppingStore';
 import { CATEGORY_CONFIG } from '../../utils/constants';
 
 export default function CategorySummary() {
-  const { items, theme, currency } = useShoppingStore();
+  const { items, currency } = useShoppingStore();
   const c = currency || 'R$';
-  const isDark = theme === 'dark';
 
   const expensesByCategory = items.reduce((acc, item) => {
     const cost = item.estimatedPrice * item.quantity;
@@ -27,10 +26,10 @@ export default function CategorySummary() {
     }));
 
   return (
-    <div className={`${isDark ? 'bg-[#13131A] border-white/5' : 'bg-white border-gray-200'} rounded-2xl border p-4 space-y-3`}>
+    <div className="rounded-2xl border p-4 space-y-3" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-strong)' }}>
       <div className="flex items-center justify-between">
-        <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Desglose</span>
-        <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{c} {totalSpent.toFixed(2)}</span>
+        <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Desglose</span>
+        <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{c} {totalSpent.toFixed(2)}</span>
       </div>
 
       {/* Segmented bar */}
@@ -50,8 +49,8 @@ export default function CategorySummary() {
         {sorted.map(({ cat, pct, color }) => (
           <div key={cat} className="flex items-center gap-1">
             <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-            <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              {cat.split(' ')[0]} <span className={isDark ? 'text-gray-600' : 'text-gray-400'}>{pct.toFixed(0)}%</span>
+            <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              {cat.split(' ')[0]} <span style={{ color: 'var(--text-tertiary)' }}>{pct.toFixed(0)}%</span>
             </span>
           </div>
         ))}

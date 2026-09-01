@@ -7,6 +7,7 @@ import { useShoppingStore, Product } from '../../store/useShoppingStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bookmark, Plus, Trash2, X, Copy, Download } from 'lucide-react';
 import { triggerHaptic } from '../../utils/haptic';
+import { useFocusTrap, useEscapeKey } from '../../utils/focusTrap';
 
 interface Template {
   id: string;
@@ -43,6 +44,8 @@ export default function TemplatesModal({ open, onClose }: TemplatesModalProps) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newName, setNewName] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const focusTrapRef = useFocusTrap(open);
+  useEscapeKey(open, onClose);
 
   if (!open || typeof window === 'undefined') return null;
 
@@ -97,12 +100,16 @@ export default function TemplatesModal({ open, onClose }: TemplatesModalProps) {
           <div className="absolute inset-0 bg-black/60" style={{ backdropFilter: 'blur(4px)' }} onClick={onClose} />
 
           <motion.div
+            ref={focusTrapRef}
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
             className="relative w-full rounded-t-3xl overflow-hidden"
             style={{ background: 'var(--bg-card)', maxHeight: '80vh' }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Plantillas de lista"
           >
             {/* Handle */}
             <div className="flex justify-center pt-3 pb-1">

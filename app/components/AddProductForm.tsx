@@ -92,7 +92,9 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
       </div>
 
       {/* Name */}
+      <label htmlFor="product-name" className="sr-only">Nombre del producto</label>
       <input
+        id="product-name"
         type="text"
         placeholder="Nombre del producto..."
         className={inputCls}
@@ -111,45 +113,58 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
       {/* Price + Qty */}
       <div className="flex gap-2">
         <div className="relative flex-1">
+          <label htmlFor="product-price" className="sr-only">Precio unitario</label>
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-[var(--text-tertiary)] font-medium">{c}</span>
           <input
+            id="product-price"
             type="number" step="0.01" min="0" placeholder="0,00"
             inputMode="decimal"
             className={`${smallInputCls} w-full pl-8 pr-2`}
             value={price}
             onChange={e => setPrice(e.target.value)}
             required
+            aria-label={`Precio en ${c}`}
           />
         </div>
+        <label htmlFor="product-qty" className="sr-only">Cantidad</label>
         <input
+          id="product-qty"
           type="number" min="1" placeholder="×1"
           inputMode="numeric"
           className={`${smallInputCls} w-16 text-center px-2`}
           value={quantity}
           onChange={e => setQuantity(e.target.value)}
+          aria-label="Cantidad"
         />
       </div>
 
       {/* Advanced Options */}
       {showAdvanced && (
         <div className="space-y-2 animate-slide-up">
+          <label htmlFor="product-store" className="sr-only">Tienda</label>
           <input
+            id="product-store"
             type="text" placeholder="Tienda (opcional)"
             className={inputCls}
             value={storeName}
             onChange={e => setStoreName(e.target.value)}
           />
           <div className="flex gap-2">
+            <label htmlFor="product-note" className="sr-only">Nota</label>
             <input
+              id="product-note"
               type="text" placeholder="Nota (marca, variante...)"
               className={`${smallInputCls} flex-1 px-3`}
               value={note}
               onChange={e => setNote(e.target.value)}
             />
+            <label htmlFor="product-priority" className="sr-only">Prioridad</label>
             <select
+              id="product-priority"
               value={priority}
               onChange={e => setPriority(e.target.value as any)}
               className={`${smallInputCls} px-3 text-xs`}
+              aria-label="Prioridad del producto"
             >
               <option value="alta">Alta</option>
               <option value="media">Media</option>

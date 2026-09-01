@@ -1,10 +1,11 @@
 // app/components/CommandPalette.tsx
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useShoppingStore } from '../../store/useShoppingStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ShoppingCart, BarChart3, CalendarDays, Home, Plus, Moon, Sun, Share2, Download, Bookmark, X } from 'lucide-react';
+import { useFocusTrap, useEscapeKey } from '../../utils/focusTrap';
 
 interface CommandPaletteProps {
   open: boolean;
@@ -23,12 +24,17 @@ interface Command {
 
 export default function CommandPalette({ open, onClose, onNavigate, onAction }: CommandPaletteProps) {
   const [query, setQuery] = useState('');
+  const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const { items, toggleTheme, theme } = useShoppingStore();
+  const focusTrapRef = useFocusTrap(open);
+  useEscapeKey(open, onClose);
 
   useEffect(() => {
     if (open) {
       setQuery('');
+      setActiveIndex(0);
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [open]);
@@ -69,11 +75,30 @@ export default function CommandPalette({ open, onClose, onNavigate, onAction }: 
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (!open) return;
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setActiveIndex(i => Math.min(i + 1, filtered.length - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setActiveIndex(i => Math.max(i - 1, 0));
+      } else if (e.key === 'Enter' && filtered.length > 0) {
+        e.preventDefault();
+        filtered[activeIndex]?.action();
+      }
     };
-    if (open) window.addEventListener('keydown', handler);
+    window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [open, onClose]);
+  }, [open, filtered, activeIndex]);
+
+  // Reset active index when filter changes
+  useEffect(() => { setActiveIndex(0); }, [query]);
+
+  // Scroll active item into view
+  useEffect(() => {
+    const el = listRef.current?.querySelector(`[data-cmd-index="${activeIndex}"]`);
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex]);
 
   return (
     <AnimatePresence>
@@ -86,6 +111,7 @@ export default function CommandPalette({ open, onClose, onNavigate, onAction }: 
           onClick={onClose}
         >
           <motion.div
+            ref={focusTrapRef}
             initial={{ opacity: 0, y: -20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.97 }}
@@ -93,6 +119,9 @@ export default function CommandPalette({ open, onClose, onNavigate, onAction }: 
             className="w-full max-w-md rounded-2xl overflow-hidden shadow-2xl"
             style={{ background: 'var(--bg-card)', border: '1px solid var(--border-strong)' }}
             onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Paleta de comandos"
           >
             {/* Search input */}
             <div className="flex items-center gap-3 px-4 py-3.5" style={{ borderBottom: '1px solid var(--border)' }}>
@@ -113,23 +142,32 @@ export default function CommandPalette({ open, onClose, onNavigate, onAction }: 
             </div>
 
             {/* Results */}
-            <div className="max-h-72 overflow-y-auto py-2 scrollbar-hide">
-              {Object.entries(grouped).map(([category, cmds]) => (
+            <div ref={listRef} className="max-h-72 overflow-y-auto py-2 scrollbar-hide" role="listbox" aria-label="Resultados">
+              {(() => { let globalIdx = 0; return Object.entries(grouped).map(([category, cmds]) => (
                 <div key={category}>
-                  <p className="text-[10px] font-bold uppercase tracking-widest px-4 py-1.5" style={{ color: 'var(--text-tertiary)' }}>{category}</p>
-                  {cmds.map(cmd => (
-                    <button
-                      key={cmd.id}
-                      onClick={cmd.action}
-                      className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[var(--bg-elevated)]"
-                      style={{ minHeight: 'unset' }}
-                    >
-                      <span style={{ color: 'var(--text-secondary)' }}>{cmd.icon}</span>
-                      <span className="text-sm" style={{ color: 'var(--text-primary)' }}>{cmd.label}</span>
-                    </button>
-                  ))}
+                  <p className="text-[10px] font-bold uppercase tracking-widest px-4 py-1.5" style={{ color: 'var(--text-tertiary)' }} role="presentation">{category}</p>
+                  {cmds.map(cmd => {
+                    const idx = globalIdx++;
+                    const isActive = idx === activeIndex;
+                    return (
+                      <button
+                        key={cmd.id}
+                        onClick={cmd.action}
+                        onMouseEnter={() => setActiveIndex(idx)}
+                        data-cmd-index={idx}
+                        role="option"
+                        aria-selected={isActive}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors"
+                        style={{ minHeight: 'unset', background: isActive ? 'var(--bg-elevated)' : 'transparent' }}
+                      >
+                        <span style={{ color: isActive ? 'var(--accent)' : 'var(--text-secondary)' }}>{cmd.icon}</span>
+                        <span className="text-sm" style={{ color: 'var(--text-primary)' }}>{cmd.label}</span>
+                        {isActive && <span className="ml-auto text-[10px]" style={{ color: 'var(--text-tertiary)' }}>↵</span>}
+                      </button>
+                    );
+                  })}
                 </div>
-              ))}
+              )); })()}
               {filtered.length === 0 && (
                 <div className="px-4 py-8 text-center">
                   <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>No se encontraron resultados</p>

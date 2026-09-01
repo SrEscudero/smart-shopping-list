@@ -79,7 +79,7 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
       const totalEstimated = s.items.reduce((a, i) => a + i.estimatedPrice * i.quantity, 0);
       const pct = (totalEstimated / s.totalBudget) * 100;
       if (pct >= 80 && 'Notification' in window && Notification.permission === 'granted') {
-        new Notification('⚠️ Presupuesto al ' + Math.round(pct) + '%', {
+        new Notification('Presupuesto al ' + Math.round(pct) + '%', {
           body: `Llevas ${s.currency} ${totalEstimated.toFixed(0)} de ${s.currency} ${s.totalBudget.toFixed(0)}`,
           icon: '/icons/icon-192x192.png',
         });

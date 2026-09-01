@@ -1,7 +1,7 @@
 // app/page.tsx
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useShoppingStore, Product } from '../store/useShoppingStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import ThemeProvider from './components/ThemeProvider';
@@ -21,11 +21,12 @@ import VoiceInput from './components/VoiceInput';
 import TemplatesModal from './components/TemplatesModal';
 import CommandPalette from './components/CommandPalette';
 import { DashboardSkeleton, ListSkeleton, StatsSkeleton } from './components/SkeletonLoaders';
-import { Home as HomeIcon, ClipboardList, BarChart3, CalendarDays, ShoppingCart, Camera, Plus, Download, Upload, AlertTriangle, CheckCircle2, Info, Search, X, PartyPopper, Undo2, Share2, Bookmark, Command } from 'lucide-react';
+import { Home as HomeIcon, ClipboardList, BarChart3, CalendarDays, ShoppingCart, Camera, Plus, Download, Upload, AlertTriangle, CheckCircle2, Info, Search, X, Undo2, Share2, Bookmark, Command } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { CATEGORY_CONFIG } from '../utils/constants';
+import gsap from 'gsap';
 
 function SortableProductCard(props: React.ComponentProps<typeof ProductCard>) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.item.id });
@@ -84,15 +85,28 @@ export default function Home() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // GSAP entrance animation on tab change
+  useEffect(() => {
+    if (!hydrated) return;
+    const t = setTimeout(() => {
+      gsap.fromTo(
+        '[data-gsap-stagger]',
+        { opacity: 0, y: 16, scale: 0.97 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.45, stagger: 0.06, ease: 'power3.out', clearProps: 'all' }
+      );
+    }, 50);
+    return () => clearTimeout(t);
+  }, [activeTab, hydrated]);
+
   const handleOnboardingDone = () => {
     localStorage.setItem('onboarding_done', '1');
     setShowOnboarding(false);
   };
 
-  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info', undoAction?: () => void) => {
+  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info', undoAction?: () => void) => {
     setToast({ message, type, undoAction });
     setTimeout(() => setToast(null), 5000);
-  };
+  }, []);
 
   const handleClearPurchased = () => {
     const count = items.filter(i => i.isPurchased).length;
@@ -120,20 +134,23 @@ export default function Home() {
     }
   };
 
-  let filtered = items.filter(item => {
-    const mf = filter === 'pending' ? !item.isPurchased : filter === 'purchased' ? item.isPurchased : true;
-    const ms = !search || item.name.toLowerCase().includes(search.toLowerCase()) ||
-      item.category.toLowerCase().includes(search.toLowerCase()) ||
-      item.store.toLowerCase().includes(search.toLowerCase());
-    return mf && ms;
-  });
-  if (sortBy === 'price') filtered = [...filtered].sort((a, b) => b.estimatedPrice * b.quantity - a.estimatedPrice * a.quantity);
-  if (sortBy === 'name') filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
-  if (sortBy === 'category') filtered = [...filtered].sort((a, b) => a.category.localeCompare(b.category));
+  const filtered = useMemo(() => {
+    let result = items.filter(item => {
+      const mf = filter === 'pending' ? !item.isPurchased : filter === 'purchased' ? item.isPurchased : true;
+      const ms = !search || item.name.toLowerCase().includes(search.toLowerCase()) ||
+        item.category.toLowerCase().includes(search.toLowerCase()) ||
+        item.store.toLowerCase().includes(search.toLowerCase());
+      return mf && ms;
+    });
+    if (sortBy === 'price') result = [...result].sort((a, b) => b.estimatedPrice * b.quantity - a.estimatedPrice * a.quantity);
+    if (sortBy === 'name') result = [...result].sort((a, b) => a.name.localeCompare(b.name));
+    if (sortBy === 'category') result = [...result].sort((a, b) => a.category.localeCompare(b.category));
+    return result;
+  }, [items, filter, search, sortBy]);
 
-  const totalSum = filtered.reduce((a, i) => a + i.estimatedPrice * i.quantity, 0);
-  const pendingCount = items.filter(i => !i.isPurchased).length;
-  const purchased = items.filter(i => i.isPurchased).length;
+  const totalSum = useMemo(() => filtered.reduce((a, i) => a + i.estimatedPrice * i.quantity, 0), [filtered]);
+  const pendingCount = useMemo(() => items.filter(i => !i.isPurchased).length, [items]);
+  const purchased = useMemo(() => items.filter(i => i.isPurchased).length, [items]);
 
   // Celebration when all items completed
   useEffect(() => {
@@ -144,24 +161,24 @@ export default function Home() {
     setPrevPending(pendingCount);
   }, [pendingCount, items.length]);
 
-  const exportToWhatsApp = () => {
+  const exportToWhatsApp = useCallback(() => {
     const pend = items.filter(i => !i.isPurchased);
     if (!pend.length) { showToast('No hay productos pendientes.', 'error'); return; }
     const grouped = pend.reduce((acc, item) => {
       if (!acc[item.store]) acc[item.store] = [];
       acc[item.store].push(item); return acc;
     }, {} as Record<string, typeof pend>);
-    let msg = `🛒 *Lista — ${month}*\n\n`;
+    let msg = `*Lista — ${month}*\n\n`;
     for (const [store, si] of Object.entries(grouped)) {
-      msg += `🏪 *${store}*\n`;
+      msg += `*${store}*\n`;
       si.forEach(i => { msg += `  • ${i.name} ×${i.quantity} — ${c} ${(i.estimatedPrice * i.quantity).toFixed(2)}\n`; });
       msg += '\n';
     }
-    msg += `💰 *Total: ${c} ${pend.reduce((a, i) => a + i.estimatedPrice * i.quantity, 0).toFixed(2)}*`;
+    msg += `*Total: ${c} ${pend.reduce((a, i) => a + i.estimatedPrice * i.quantity, 0).toFixed(2)}*`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-  };
+  }, [items, month, c, showToast]);
 
-  const exportToCSV = () => {
+  const exportToCSV = useCallback(() => {
     const headers = ['Nombre', 'Categoria', 'Precio Estimado', 'Cantidad', 'Tienda', 'Nota'];
     const rows = items.map(i => [
       `"${i.name}"`, 
@@ -181,7 +198,7 @@ export default function Home() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
+  }, [items, month]);
 
   const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -243,6 +260,9 @@ export default function Home() {
     <ThemeProvider>
       <div className="min-h-screen transition-colors duration-300" style={{ background: 'var(--bg)', color: 'var(--text-primary)' }}>
 
+        {/* Skip to content — Accessibility #10 */}
+        <a href="#main-content" className="skip-to-content">Saltar al contenido</a>
+
         {/* ONBOARDING */}
         <AnimatePresence>
           {showOnboarding && (
@@ -270,7 +290,7 @@ export default function Home() {
                 transition={{ type: 'spring', damping: 12, stiffness: 200 }}
                 className="bg-[var(--bg-card)] border border-[var(--border)] rounded-3xl p-8 flex flex-col items-center gap-3 shadow-2xl"
               >
-                <PartyPopper size={48} className="text-[var(--accent)] animate-bounce" />
+                <CheckCircle2 size={48} className="text-[var(--accent)]" strokeWidth={1.5} />
                 <h2 className="text-xl font-bold font-display text-[var(--text-primary)]">¡Lista completa!</h2>
                 <p className="text-sm text-[var(--text-secondary)]">{items.length} productos comprados</p>
               </motion.div>
@@ -278,29 +298,32 @@ export default function Home() {
           )}
         </AnimatePresence>
 
-        {/* TOAST NOTIFICATION WITH UNDO */}
-        <AnimatePresence>
-          {toast && (
-            <motion.div
-              initial={{ opacity: 0, y: -20, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -20, scale: 0.95 }}
-              className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-3 rounded-2xl shadow-xl glass-premium"
-            >
-              <span className="flex-shrink-0">
-                {toast.type === 'error' ? <AlertTriangle size={20} className="text-red-400" /> : toast.type === 'success' ? <CheckCircle2 size={20} className="text-green-400" /> : <Info size={20} className="text-blue-400" />}
-              </span>
-              <span className="text-sm font-semibold">{toast.message}</span>
-              {toast.undoAction && (
-                <button onClick={() => { toast.undoAction?.(); setToast(null); }}
-                  className="ml-2 flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg transition-all"
-                  style={{ background: 'var(--accent-soft)', color: 'var(--accent)', minHeight: 'unset' }}>
-                  <Undo2 size={12} /> Deshacer
-                </button>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* TOAST NOTIFICATION WITH UNDO — aria-live for screen readers (#5) */}
+        <div aria-live="polite" aria-atomic="true" role="status">
+          <AnimatePresence>
+            {toast && (
+              <motion.div
+                initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-3 rounded-2xl shadow-xl glass-premium"
+              >
+                <span className="flex-shrink-0">
+                  {toast.type === 'error' ? <AlertTriangle size={20} className="text-red-400" /> : toast.type === 'success' ? <CheckCircle2 size={20} className="text-green-400" /> : <Info size={20} className="text-blue-400" />}
+                </span>
+                <span className="text-sm font-semibold">{toast.message}</span>
+                {toast.undoAction && (
+                  <button onClick={() => { toast.undoAction?.(); setToast(null); }}
+                    className="ml-2 flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg transition-all"
+                    style={{ background: 'var(--accent-soft)', color: 'var(--accent)', minHeight: 'unset' }}
+                    aria-label="Deshacer última acción">
+                    <Undo2 size={12} /> Deshacer
+                  </button>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* CONFIRM DIALOG */}
         <ConfirmDialog
@@ -404,21 +427,25 @@ export default function Home() {
           </div>
         </header>
 
-        {/* ── TABS (inline, no sticky) ── */}
-        <div style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+        {/* ── TABS (inline, no sticky) — ARIA roles #9 ── */}
+        <nav aria-label="Secciones principales" style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
           <div className="max-w-2xl mx-auto px-5">
-            <div className="flex gap-0 overflow-x-auto scrollbar-hide">
+            <div className="flex gap-0 overflow-x-auto scrollbar-hide" role="tablist" aria-label="Navegación principal">
               {tabs.map(tab => {
                 const isActive = activeTab === tab.id;
                 return (
                   <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                    role="tab"
+                    aria-selected={isActive}
+                    aria-controls={`tabpanel-${tab.id}`}
+                    id={`tab-${tab.id}`}
                     className="relative flex items-center gap-1.5 px-4 py-3 text-[13px] font-medium transition-colors flex-shrink-0"
                     style={{
                       color: isActive ? 'var(--accent)' : 'var(--text-tertiary)',
                       minHeight: 'unset',
                     }}
                   >
-                    <span className="flex items-center justify-center">{tab.icon}</span>
+                    <span className="flex items-center justify-center" aria-hidden="true">{tab.icon}</span>
                     <span>{tab.label}</span>
                     {isActive && (
                       <motion.div
@@ -433,19 +460,20 @@ export default function Home() {
               })}
             </div>
           </div>
-        </div>
+        </nav>
 
         {/* ── CONTENT ── */}
-        <main className="max-w-2xl mx-auto px-4 pb-32 pt-4 space-y-4">
+        <main id="main-content" className="max-w-2xl mx-auto px-4 pb-32 pt-4 space-y-4">
           <AnimatePresence mode="wait">
             {/* HOME TAB */}
             {activeTab === 'home' && (
-              <motion.div key="home" variants={tabVariants} initial="initial" animate="animate" exit="exit" className="space-y-5">
+              <motion.div key="home" variants={tabVariants} initial="initial" animate="animate" exit="exit" className="space-y-5"
+                role="tabpanel" id="tabpanel-home" aria-labelledby="tab-home">
                 {!hydrated ? <DashboardSkeleton /> : (
                   <>
-                    <Dashboard />
-                    <BudgetWidget full />
-                    <CategorySummary />
+                    <div data-gsap-stagger><Dashboard /></div>
+                    <div data-gsap-stagger><BudgetWidget full /></div>
+                    <div data-gsap-stagger><CategorySummary /></div>
                   </>
                 )}
               </motion.div>
@@ -453,7 +481,8 @@ export default function Home() {
 
           {/* LIST TAB */}
           {activeTab === 'list' && (
-            <motion.div key="list" variants={tabVariants} initial="initial" animate="animate" exit="exit" className="space-y-4">
+            <motion.div key="list" variants={tabVariants} initial="initial" animate="animate" exit="exit" className="space-y-4"
+              role="tabpanel" id="tabpanel-list" aria-labelledby="tab-list">
 
               {/* Shopping mode shortcut */}
               {!shoppingMode && items.length > 0 && (
@@ -681,8 +710,8 @@ export default function Home() {
             </motion.div>
           )}
 
-          {activeTab === 'stats' && <motion.div key="stats" variants={tabVariants} initial="initial" animate="animate" exit="exit">{!hydrated ? <StatsSkeleton /> : <StatsPanel />}</motion.div>}
-          {activeTab === 'history' && <motion.div key="history" variants={tabVariants} initial="initial" animate="animate" exit="exit"><HistoryModal /></motion.div>}
+          {activeTab === 'stats' && <motion.div key="stats" variants={tabVariants} initial="initial" animate="animate" exit="exit" role="tabpanel" id="tabpanel-stats" aria-labelledby="tab-stats">{!hydrated ? <StatsSkeleton /> : <StatsPanel />}</motion.div>}
+          {activeTab === 'history' && <motion.div key="history" variants={tabVariants} initial="initial" animate="animate" exit="exit" role="tabpanel" id="tabpanel-history" aria-labelledby="tab-history"><HistoryModal /></motion.div>}
           </AnimatePresence>
         </main>
 
@@ -714,6 +743,7 @@ export default function Home() {
 
         {/* ── BOTTOM NAV ── */}
         <nav className="fixed bottom-0 left-0 right-0 z-30"
+          aria-label="Navegación inferior"
           style={{
             paddingBottom: 'env(safe-area-inset-bottom, 0px)',
             background: 'var(--bg)',
@@ -727,13 +757,15 @@ export default function Home() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
+                  aria-label={`${tab.label}${tab.id === 'list' && pendingCount > 0 ? ` (${pendingCount} pendientes)` : ''}`}
+                  aria-current={isActive ? 'page' : undefined}
                   className="flex flex-col items-center gap-0.5 flex-1 py-2 relative transition-colors"
                   style={{
                     color: isActive ? 'var(--accent)' : 'var(--text-tertiary)',
                     minHeight: 'unset',
                   }}
                 >
-                  <span className="relative flex items-center justify-center w-10 h-7">
+                  <span className="relative flex items-center justify-center w-10 h-7" aria-hidden="true">
                     {tab.icon}
                     {tab.id === 'list' && pendingCount > 0 && (
                       <span

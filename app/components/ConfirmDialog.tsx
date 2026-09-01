@@ -4,6 +4,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactDOM from 'react-dom';
 import { AlertTriangle, X } from 'lucide-react';
+import { useFocusTrap, useEscapeKey } from '../../utils/focusTrap';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -37,6 +38,8 @@ export default function ConfirmDialog({
   };
 
   const c = colors[variant];
+  const focusTrapRef = useFocusTrap(open);
+  useEscapeKey(open, onCancel);
 
   return ReactDOM.createPortal(
     <AnimatePresence>
@@ -53,12 +56,17 @@ export default function ConfirmDialog({
 
           {/* Dialog */}
           <motion.div
+            ref={focusTrapRef}
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="relative w-full max-w-sm rounded-3xl p-6 space-y-4"
             style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="confirm-dialog-title"
+            aria-describedby="confirm-dialog-desc"
           >
             {/* Close */}
             <button
@@ -77,8 +85,8 @@ export default function ConfirmDialog({
 
             {/* Content */}
             <div className="text-center space-y-2">
-              <h3 className="text-lg font-bold font-display" style={{ color: 'var(--text-primary)' }}>{title}</h3>
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{description}</p>
+              <h3 id="confirm-dialog-title" className="text-lg font-bold font-display" style={{ color: 'var(--text-primary)' }}>{title}</h3>
+              <p id="confirm-dialog-desc" className="text-sm" style={{ color: 'var(--text-secondary)' }}>{description}</p>
               {itemCount !== undefined && (
                 <p className="text-xs font-bold px-3 py-1 rounded-full inline-block" style={{ background: c.bg, color: c.text }}>
                   {itemCount} {itemCount === 1 ? 'item' : 'items'}

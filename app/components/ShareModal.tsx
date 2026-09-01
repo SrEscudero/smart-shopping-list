@@ -6,6 +6,7 @@ import ReactDOM from 'react-dom';
 import { useShoppingStore } from '../../store/useShoppingStore';
 import { Share2, Copy, Check, X, Link2, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useFocusTrap, useEscapeKey } from '../../utils/focusTrap';
 
 interface ShareModalProps {
   open: boolean;
@@ -18,6 +19,8 @@ export default function ShareModal({ open, onClose }: ShareModalProps) {
   const currency = useShoppingStore(s => s.currency);
   const c = currency || 'R$';
   const [copied, setCopied] = useState(false);
+  const focusTrapRef = useFocusTrap(open);
+  useEscapeKey(open, onClose);
 
   if (!open || typeof window === 'undefined') return null;
 
@@ -31,15 +34,15 @@ export default function ShareModal({ open, onClose }: ShareModalProps) {
       return acc;
     }, {} as Record<string, typeof pendingItems>);
 
-    let msg = `🛒 *Lista — ${month}*\n\n`;
+    let msg = `*Lista — ${month}*\n\n`;
     for (const [store, si] of Object.entries(grouped)) {
-      msg += `🏪 *${store}*\n`;
+      msg += `*${store}*\n`;
       si.forEach(i => {
         msg += `  • ${i.name} ×${i.quantity} — ${c} ${(i.estimatedPrice * i.quantity).toFixed(2)}\n`;
       });
       msg += '\n';
     }
-    msg += `💰 *Total: ${c} ${pendingItems.reduce((a, i) => a + i.estimatedPrice * i.quantity, 0).toFixed(2)}*`;
+    msg += `*Total: ${c} ${pendingItems.reduce((a, i) => a + i.estimatedPrice * i.quantity, 0).toFixed(2)}*`;
     return msg;
   };
 
@@ -104,12 +107,16 @@ export default function ShareModal({ open, onClose }: ShareModalProps) {
           <div className="absolute inset-0 bg-black/60" style={{ backdropFilter: 'blur(4px)' }} onClick={onClose} />
 
           <motion.div
+            ref={focusTrapRef}
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
             className="relative w-full rounded-t-3xl p-5 space-y-4"
             style={{ background: 'var(--bg-card)', maxHeight: '70vh' }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Compartir lista de compras"
           >
             {/* Handle */}
             <div className="flex justify-center">

@@ -9,7 +9,7 @@ export type BaseCategory =
   | 'Despensa' | 'Congelados' | 'Mascotas' | 'Bebés'
   | 'Electrónica' | 'Ropa' | 'Otros';
 
-export type AccentColor = 'blue' | 'green' | 'orange' | 'pink' | 'purple' | 'teal';
+export type AccentColor = 'blue' | 'green' | 'orange' | 'pink' | 'purple' | 'teal' | 'slate' | 'copper' | 'sage' | 'coral' | 'navy';
 export type ListDensity = 'compact' | 'normal' | 'spacious';
 export type CurrencySymbol = 'R$' | '$' | '€' | '£' | '¥' | 'CLP' | 'ARS' | 'COP' | 'MXN' | 'PEN' | 'UYU';
 export type ThemeMode = 'dark' | 'light' | 'auto';

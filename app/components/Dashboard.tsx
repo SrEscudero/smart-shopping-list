@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useShoppingStore, CurrencySymbol, ListDensity, ThemeMode } from '../../store/useShoppingStore';
-import { ShoppingCart, Sun, Moon, Monitor, Palette, ChevronDown, Pencil, Check, X, DollarSign, LayoutList, Sparkles } from 'lucide-react';
+import { ShoppingCart, Sun, Moon, Monitor, Palette, ChevronDown, Pencil, Check, X, DollarSign, LayoutList, Sparkles, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import BackupRestore from './BackupRestore';
 
@@ -14,6 +14,11 @@ const ACCENT_OPTIONS = [
   { id: 'pink',   label: 'Rosa',     hex: '#EC4899' },
   { id: 'purple', label: 'Violeta',  hex: '#A855F7' },
   { id: 'teal',   label: 'Cian',     hex: '#06B6D4' },
+  { id: 'slate',  label: 'Pizarra',  hex: '#64748B' },
+  { id: 'copper', label: 'Cobre',    hex: '#C2956B' },
+  { id: 'sage',   label: 'Salvia',   hex: '#6B8F71' },
+  { id: 'coral',  label: 'Coral',    hex: '#E07A5F' },
+  { id: 'navy',   label: 'Naval',    hex: '#3D5A80' },
 ] as const;
 
 const CURRENCY_OPTIONS: { id: CurrencySymbol; label: string }[] = [
@@ -35,12 +40,12 @@ const THEME_OPTIONS: { id: ThemeMode; label: string; icon: React.ReactNode }[] =
   { id: 'auto', label: 'Auto', icon: <Monitor size={14} /> },
 ];
 
-function getGreeting(): string {
+function getGreeting(): { text: string; period: string } {
   const h = new Date().getHours();
-  if (h < 6) return '🌙 Buenas noches';
-  if (h < 12) return '☀️ Buenos días';
-  if (h < 18) return '🌤️ Buenas tardes';
-  return '🌙 Buenas noches';
+  if (h < 6) return { text: 'Buenas noches', period: 'night' };
+  if (h < 12) return { text: 'Buenos días', period: 'morning' };
+  if (h < 18) return { text: 'Buenas tardes', period: 'afternoon' };
+  return { text: 'Buenas noches', period: 'night' };
 }
 
 export default function Dashboard() {
@@ -103,7 +108,9 @@ export default function Dashboard() {
         <div className="relative z-10 flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             {/* Greeting */}
-            <p className="text-xs font-medium mb-1" style={{ color: 'var(--text-tertiary)' }}>{getGreeting()}</p>
+            <div className="flex items-center gap-1.5 mb-1 text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>
+              {(() => { const g = getGreeting(); return <><Clock size={12} /><span>{g.text}</span></>; })()}
+            </div>
 
             {/* Month label */}
             {editingMonth ? (
@@ -307,7 +314,7 @@ export default function Dashboard() {
         <AnimatePresence>
           {showAccentPicker && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-              className="px-5 py-4 flex justify-center gap-3 overflow-hidden" style={{ borderBottom: '1px solid var(--border)' }}>
+              className="px-5 py-4 flex flex-wrap justify-center gap-3 overflow-hidden" style={{ borderBottom: '1px solid var(--border)' }}>
               {ACCENT_OPTIONS.map((opt, i) => (
                 <motion.button key={opt.id} initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}
                   onClick={() => { setAccentColor(opt.id); setShowAccentPicker(false); }}
