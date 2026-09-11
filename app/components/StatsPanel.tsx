@@ -149,7 +149,7 @@ export default function StatsPanel() {
                   dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={80} stroke="none">
                   {sortedCategories.map(([cat]) => (<Cell key={`cell-${cat}`} fill={CATEGORY_CONFIG[cat]?.color || '#8E8E93'} />))}
                 </Pie>
-                <RechartsTooltip formatter={(value: any) => `${c} ${Number(value).toFixed(2)}`}
+                <RechartsTooltip formatter={(value: unknown) => `${c} ${Number(value).toFixed(2)}`}
                   contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '12px', color: 'var(--text-primary)' }}
                   itemStyle={{ color: 'var(--text-primary)' }} />
               </PieChart>

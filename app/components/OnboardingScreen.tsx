@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingCart, BarChart3, Wifi, ChevronRight, Check, Sparkles, Camera, Shield } from 'lucide-react';
+import { ShoppingCart, BarChart3, Wifi, ChevronRight, Sparkles } from 'lucide-react';
 
 const slides = [
   {

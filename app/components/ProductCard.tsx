@@ -148,7 +148,7 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
             setTimeout(() => setJustToggled(false), 600);
         }
         onToggle(item.id);
-    }, [item.isPurchased, item.id, onToggle, shoppingMode, item.estimatedPrice]);
+    }, [item.isPurchased, item.id, onToggle, shoppingMode, item.estimatedPrice, soundEnabled]);
 
     const confirmFinalPrice = () => {
         const fp = parseFloat(finalPriceInput);

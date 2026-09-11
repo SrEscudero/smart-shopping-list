@@ -1,34 +1,46 @@
 // app/page.tsx
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useShoppingStore, Product } from '../store/useShoppingStore';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import dynamic from 'next/dynamic';
+import { useShoppingStore } from '../store/useShoppingStore';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { Variants } from 'framer-motion';
 import ThemeProvider from './components/ThemeProvider';
-import Dashboard from './components/Dashboard';
-import AddProductForm from './components/AddProductForm';
-import CategorySummary from './components/CategorySummary';
-import StatsPanel from './components/StatsPanel';
-import HistoryModal from './components/HistoryModal';
 import ProductCard from './components/ProductCard';
-import CameraScanner from './components/CameraScanner';
 import BudgetWidget from './components/BudgetWidget';
-import OnboardingScreen from './components/OnboardingScreen';
-import ConfirmDialog from './components/ConfirmDialog';
-import ShareModal from './components/ShareModal';
-import QuickAdd from './components/QuickAdd';
-import VoiceInput from './components/VoiceInput';
-import TemplatesModal from './components/TemplatesModal';
-import CommandPalette from './components/CommandPalette';
-import ListSelector from './components/ListSelector';
-import SpeedDialFAB from './components/SpeedDialFAB';
-import { DashboardSkeleton, ListSkeleton, StatsSkeleton } from './components/SkeletonLoaders';
-import { Home as HomeIcon, ClipboardList, BarChart3, CalendarDays, ShoppingCart, Camera, Plus, Download, Upload, AlertTriangle, CheckCircle2, Info, Search, X, Undo2, Share2, Bookmark, Command } from 'lucide-react';
+import { DashboardSkeleton, StatsSkeleton } from './components/SkeletonLoaders';
+import { Home as HomeIcon, ClipboardList, BarChart3, CalendarDays, ShoppingCart, Camera, Download, Upload, AlertTriangle, CheckCircle2, Info, Search, X, Undo2, Share2, Bookmark, Command } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { CATEGORY_CONFIG } from '../utils/constants';
-import gsap from 'gsap';
+import { csvToProducts, productsToCsv } from '../utils/csv';
+import { decodeSharedProducts } from '../utils/share';
+
+const Dashboard = dynamic(() => import('./components/Dashboard'), { loading: () => <DashboardSkeleton /> });
+const AddProductForm = dynamic(() => import('./components/AddProductForm'));
+const CategorySummary = dynamic(() => import('./components/CategorySummary'));
+const StatsPanel = dynamic(() => import('./components/StatsPanel'), { loading: () => <StatsSkeleton /> });
+const HistoryModal = dynamic(() => import('./components/HistoryModal'));
+const CameraScanner = dynamic(() => import('./components/CameraScanner'));
+const OnboardingScreen = dynamic(() => import('./components/OnboardingScreen'));
+const ConfirmDialog = dynamic(() => import('./components/ConfirmDialog'));
+const ShareModal = dynamic(() => import('./components/ShareModal'));
+const TemplatesModal = dynamic(() => import('./components/TemplatesModal'));
+const CommandPalette = dynamic(() => import('./components/CommandPalette'));
+const ListSelector = dynamic(() => import('./components/ListSelector'));
+const QuickAdd = dynamic(() => import('./components/QuickAdd'));
+const SpeedDialFAB = dynamic(() => import('./components/SpeedDialFAB'));
+
+type AppTab = 'home' | 'list' | 'stats' | 'history';
+type SortMode = 'default' | 'price' | 'name' | 'category';
+
+const isAppTab = (value: string | null): value is AppTab =>
+  value === 'home' || value === 'list' || value === 'stats' || value === 'history';
+
+const isSortMode = (value: string): value is SortMode =>
+  value === 'default' || value === 'price' || value === 'name' || value === 'category';
 
 function SortableProductCard(props: React.ComponentProps<typeof ProductCard>) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.item.id });
@@ -50,27 +62,33 @@ export default function Home() {
   const {
     month, items, toggleProduct, removeProduct, updateProduct,
     clearPurchased, theme, shoppingMode, toggleShoppingMode,
-    addMultipleProducts, currency, toggleRecurring, undo, canUndo
+    addMultipleProducts, currency, undo
   } = useShoppingStore();
   const c = currency || 'R$';
 
   const [filter, setFilter] = useState<'all' | 'pending' | 'purchased'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [activeTab, setActiveTab] = useState<'home' | 'list' | 'stats' | 'history'>('home');
-  const [sortBy, setSortBy] = useState<'default' | 'price' | 'name' | 'category'>('default');
+  const [activeTab, setActiveTab] = useState<AppTab>('home');
+  const [sortBy, setSortBy] = useState<SortMode>('default');
   const [showAddForm, setShowAddForm] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [search, setSearch] = useState('');
-  const [searchOpen, setSearchOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info', undoAction?: () => void } | null>(null);
   const [celebration, setCelebration] = useState(false);
-  const [prevPending, setPrevPending] = useState<number | null>(null);
+  const prevPendingRef = useRef<number | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showConfirmClear, setShowConfirmClear] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info', undoAction?: () => void) => {
+    setToast({ message, type, undoAction });
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 5000);
+  }, []);
 
   // Hydration + onboarding + keyboard shortcuts
   useEffect(() => {
@@ -85,31 +103,57 @@ export default function Home() {
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
   }, []);
 
-  // GSAP entrance animation on tab change
   useEffect(() => {
-    if (!hydrated) return;
-    const t = setTimeout(() => {
-      gsap.fromTo(
-        '[data-gsap-stagger]',
-        { opacity: 0, y: 16, scale: 0.97 },
-        { opacity: 1, y: 0, scale: 1, duration: 0.45, stagger: 0.06, ease: 'power3.out', clearProps: 'all' }
-      );
-    }, 50);
-    return () => clearTimeout(t);
-  }, [activeTab, hydrated]);
+    const params = new URLSearchParams(window.location.search);
+    const requestedTab = params.get('tab');
+    const action = params.get('action');
+    const encodedImport = params.get('import');
+
+    if (isAppTab(requestedTab)) setActiveTab(requestedTab);
+
+    if (encodedImport) {
+      try {
+        const imported = decodeSharedProducts(encodedImport);
+        if (imported.length > 0) {
+          addMultipleProducts(imported);
+          setActiveTab('list');
+          showToast(`${imported.length} productos importados desde enlace.`, 'success');
+        } else {
+          showToast('El enlace no contiene productos válidos.', 'error');
+        }
+      } catch {
+        showToast('No se pudo leer el enlace compartido.', 'error');
+      }
+    }
+
+    if (action === 'add') {
+      setActiveTab('list');
+      setShowAddForm(true);
+    }
+    if (action === 'scan') {
+      setActiveTab('list');
+      setShowCamera(true);
+    }
+    if (action === 'shop') {
+      setActiveTab('list');
+      if (!useShoppingStore.getState().shoppingMode) toggleShoppingMode();
+    }
+
+    if (requestedTab || action || encodedImport) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [addMultipleProducts, showToast, toggleShoppingMode]);
 
   const handleOnboardingDone = () => {
     localStorage.setItem('onboarding_done', '1');
     setShowOnboarding(false);
   };
-
-  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info', undoAction?: () => void) => {
-    setToast({ message, type, undoAction });
-    setTimeout(() => setToast(null), 5000);
-  }, []);
 
   const handleClearPurchased = () => {
     const count = items.filter(i => i.isPurchased).length;
@@ -154,7 +198,7 @@ export default function Home() {
     if (sortBy === 'name') result = [...result].sort((a, b) => a.name.localeCompare(b.name));
     if (sortBy === 'category') result = [...result].sort((a, b) => a.category.localeCompare(b.category));
     return result;
-  }, [items, filter, search, sortBy]);
+  }, [items, filter, selectedCategory, search, sortBy]);
 
   const totalSum = useMemo(() => filtered.reduce((a, i) => a + i.estimatedPrice * i.quantity, 0), [filtered]);
   const pendingCount = useMemo(() => items.filter(i => !i.isPurchased).length, [items]);
@@ -162,42 +206,15 @@ export default function Home() {
 
   // Celebration when all items completed
   useEffect(() => {
-    if (prevPending !== null && prevPending > 0 && pendingCount === 0 && items.length > 0) {
+    if (prevPendingRef.current !== null && prevPendingRef.current > 0 && pendingCount === 0 && items.length > 0) {
       setCelebration(true);
       setTimeout(() => setCelebration(false), 4000);
     }
-    setPrevPending(pendingCount);
+    prevPendingRef.current = pendingCount;
   }, [pendingCount, items.length]);
 
-  const exportToWhatsApp = useCallback(() => {
-    const pend = items.filter(i => !i.isPurchased);
-    if (!pend.length) { showToast('No hay productos pendientes.', 'error'); return; }
-    const grouped = pend.reduce((acc, item) => {
-      if (!acc[item.store]) acc[item.store] = [];
-      acc[item.store].push(item); return acc;
-    }, {} as Record<string, typeof pend>);
-    let msg = `*Lista — ${month}*\n\n`;
-    for (const [store, si] of Object.entries(grouped)) {
-      msg += `*${store}*\n`;
-      si.forEach(i => { msg += `  • ${i.name} ×${i.quantity} — ${c} ${(i.estimatedPrice * i.quantity).toFixed(2)}\n`; });
-      msg += '\n';
-    }
-    msg += `*Total: ${c} ${pend.reduce((a, i) => a + i.estimatedPrice * i.quantity, 0).toFixed(2)}*`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-  }, [items, month, c, showToast]);
-
   const exportToCSV = useCallback(() => {
-    const headers = ['Nombre', 'Categoria', 'Precio Estimado', 'Cantidad', 'Tienda', 'Nota'];
-    const rows = items.map(i => [
-      `"${i.name}"`, 
-      `"${i.category}"`, 
-      i.estimatedPrice, 
-      i.quantity, 
-      `"${i.store}"`, 
-      `"${i.note || ''}"`
-    ].join(','));
-    
-    const csvContent = [headers.join(','), ...rows].join('\n');
+    const csvContent = productsToCsv(items);
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -215,33 +232,11 @@ export default function Home() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
-      const lines = text.split('\n').filter(line => line.trim() !== '');
-      if (lines.length <= 1) {
+      const importedProducts = csvToProducts(text);
+      if (importedProducts.length === 0) {
         showToast("El archivo está vacío o solo contiene cabeceras.", 'error');
         return; 
       }
-
-      const importedProducts: Omit<Product, 'id' | 'isPurchased' | 'addedAt'>[] = [];
-
-      for (let i = 1; i < lines.length; i++) {
-        const [name, category, price, qty, store, note] = lines[i].split(',').map(s => s?.replace(/^"|"$/g, '').trim() || '');
-        if (!name) continue; 
-        importedProducts.push({
-          name,
-          category: category || 'Otros',
-          estimatedPrice: parseFloat(price) || 0,
-          quantity: parseInt(qty) || 1,
-          store: store || '',
-          note: note || '',
-        });
-      }
-
-      importedProducts.sort((a, b) => {
-        if (a.category === b.category) {
-          return a.name.localeCompare(b.name);
-        }
-        return a.category.localeCompare(b.category);
-      });
 
       addMultipleProducts(importedProducts);
       showToast(`${importedProducts.length} productos importados y ordenados con éxito.`, 'success');
@@ -258,9 +253,9 @@ export default function Home() {
     { id: 'history' as const, icon: <CalendarDays size={20} strokeWidth={2} />, label: 'Historial' },
   ];
 
-  const tabVariants: any = {
+  const tabVariants: Variants = {
     initial: { opacity: 0, y: 12, scale: 0.98 },
-    animate: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.3, ease: [0.32, 0.72, 0, 1] } },
+    animate: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.3, ease: [0.32, 0.72, 0, 1] as const } },
     exit: { opacity: 0, y: -8, scale: 0.98, transition: { duration: 0.15 } },
   };
 
@@ -539,7 +534,9 @@ export default function Home() {
                     </button>
                   ))}
                   <div className="w-px h-5 flex-shrink-0 mx-1 bg-[var(--border)]" />
-                  <select value={sortBy} onChange={e => setSortBy(e.target.value as any)}
+                  <select value={sortBy} onChange={e => {
+                    if (isSortMode(e.target.value)) setSortBy(e.target.value);
+                  }}
                     className="flex-shrink-0 text-xs px-2.5 py-1.5 rounded-xl border-0 focus:outline-none font-semibold min-w-[110px]"
                     style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', appearance: 'none', minHeight: 'unset' }}>
                     <option value="default">Orden Normal</option>

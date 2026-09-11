@@ -1,5 +1,6 @@
 // app/components/CameraScanner.tsx
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import { useState, useRef, useCallback } from 'react';
 import { useShoppingStore } from '../../store/useShoppingStore';
@@ -135,7 +136,7 @@ export default function CameraScanner({ onClose }: CameraScannerProps) {
         setError('No se detectaron productos. Intenta con una imagen más clara.');
         setMode('preview');
       }
-    } catch (err) {
+    } catch {
       setError('Error al procesar la imagen. Verifica tu conexión.');
       setMode('preview');
     }

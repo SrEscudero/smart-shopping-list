@@ -1,11 +1,11 @@
 // app/components/TemplatesModal.tsx
 "use client";
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import ReactDOM from 'react-dom';
-import { useShoppingStore, Product } from '../../store/useShoppingStore';
+import { useShoppingStore } from '../../store/useShoppingStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bookmark, Plus, Trash2, X, Copy, Download } from 'lucide-react';
+import { Bookmark, Plus, Trash2, X, Copy } from 'lucide-react';
 import { triggerHaptic } from '../../utils/haptic';
 import { useFocusTrap, useEscapeKey } from '../../utils/focusTrap';
 

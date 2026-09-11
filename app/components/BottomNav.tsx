@@ -1,7 +1,6 @@
 // app/components/BottomNav.tsx
 "use client";
 
-import { useShoppingStore } from '../../store/useShoppingStore';
 import { ClipboardList, BarChart3, CalendarDays, Home } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -12,8 +11,6 @@ interface BottomNavProps {
 }
 
 export default function BottomNav({ activeTab, setActiveTab, pendingCount }: BottomNavProps) {
-  const theme = useShoppingStore(s => s.theme);
-
   const tabs = [
     { id: 'home' as const, label: 'Inicio', icon: <Home size={22} /> },
     { id: 'list' as const, label: 'Lista', icon: <ClipboardList size={22} /> },

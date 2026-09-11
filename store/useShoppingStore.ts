@@ -412,7 +412,9 @@ export const useShoppingStore = create<ShoppingStore>()(
       name: 'shopping-v3',
       partialize: (state) => {
         // Exclude undo/redo stacks from persistence
-        const { _undoStack, _redoStack, ...rest } = state;
+        const { _undoStack: undoStack, _redoStack: redoStack, ...rest } = state;
+        void undoStack;
+        void redoStack;
         return rest;
       },
     }

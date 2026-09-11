@@ -1,27 +1,53 @@
 // app/components/VoiceInput.tsx
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from 'react';
-import { Mic, MicOff, Loader2 } from 'lucide-react';
+import { useState, useRef, useCallback } from 'react';
+import { Mic, MicOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface VoiceInputProps {
   onResult: (data: { name: string; price?: number; quantity?: number }) => void;
-  currency?: string;
 }
 
-export default function VoiceInput({ onResult, currency = 'R$' }: VoiceInputProps) {
+interface SpeechRecognitionEventLike {
+  results: {
+    length: number;
+    [index: number]: {
+      isFinal: boolean;
+      [index: number]: { transcript: string };
+    };
+  };
+}
+
+interface SpeechRecognitionLike {
+  lang: string;
+  interimResults: boolean;
+  maxAlternatives: number;
+  continuous: boolean;
+  onstart: (() => void) | null;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+}
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+
+const getSpeechRecognition = (): SpeechRecognitionConstructor | undefined => {
+  if (typeof window === 'undefined') return undefined;
+  const speechWindow = window as Window & {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  };
+  return speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
+};
+
+export default function VoiceInput({ onResult }: VoiceInputProps) {
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const [supported, setSupported] = useState(true);
-  const recognitionRef = useRef<any>(null);
-
-  useEffect(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setSupported(false);
-    }
-  }, []);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const supported = typeof window === 'undefined' || Boolean(getSpeechRecognition());
 
   const parseVoiceInput = useCallback((text: string) => {
     const lower = text.toLowerCase().trim();
@@ -74,7 +100,7 @@ export default function VoiceInput({ onResult, currency = 'R$' }: VoiceInputProp
   }, []);
 
   const startListening = useCallback(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SpeechRecognition = getSpeechRecognition();
     if (!SpeechRecognition) return;
 
     const recognition = new SpeechRecognition();
@@ -88,7 +114,7 @@ export default function VoiceInput({ onResult, currency = 'R$' }: VoiceInputProp
       setTranscript('');
     };
 
-    recognition.onresult = (event: any) => {
+    recognition.onresult = (event) => {
       const result = event.results[event.results.length - 1];
       const text = result[0].transcript;
       setTranscript(text);
@@ -175,7 +201,7 @@ export default function VoiceInput({ onResult, currency = 'R$' }: VoiceInputProp
               </span>
             </div>
             <p className="text-[10px] mt-1" style={{ color: 'var(--text-tertiary)' }}>
-              Ej: "3 litros de leche a 5 reales"
+              Ej: &quot;3 litros de leche a 5 reales&quot;
             </p>
           </motion.div>
         )}

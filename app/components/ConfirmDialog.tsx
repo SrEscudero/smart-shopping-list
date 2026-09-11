@@ -29,7 +29,8 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
-  if (!open || typeof window === 'undefined') return null;
+  const focusTrapRef = useFocusTrap(open);
+  useEscapeKey(open, onCancel);
 
   const colors = {
     danger: { bg: 'rgba(255,69,58,0.12)', border: 'rgba(255,69,58,0.25)', text: '#FF453A', btn: '#FF453A' },
@@ -38,8 +39,8 @@ export default function ConfirmDialog({
   };
 
   const c = colors[variant];
-  const focusTrapRef = useFocusTrap(open);
-  useEscapeKey(open, onCancel);
+
+  if (!open || typeof window === 'undefined') return null;
 
   return ReactDOM.createPortal(
     <AnimatePresence>

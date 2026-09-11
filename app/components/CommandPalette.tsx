@@ -1,10 +1,10 @@
 // app/components/CommandPalette.tsx
 "use client";
 
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useShoppingStore } from '../../store/useShoppingStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ShoppingCart, BarChart3, CalendarDays, Home, Plus, Moon, Sun, Share2, Download, Bookmark, X } from 'lucide-react';
+import { Search, ShoppingCart, BarChart3, CalendarDays, Home, Plus, Moon, Sun, Share2, Download, Bookmark } from 'lucide-react';
 import { useFocusTrap, useEscapeKey } from '../../utils/focusTrap';
 
 interface CommandPaletteProps {

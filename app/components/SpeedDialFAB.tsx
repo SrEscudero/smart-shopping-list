@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Plus, Camera, Bookmark, Mic, X } from 'lucide-react';
+import { Plus, Camera, Bookmark, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface SpeedDialFABProps {

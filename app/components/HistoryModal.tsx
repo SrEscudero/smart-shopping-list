@@ -7,7 +7,7 @@ import {
   CalendarDays, Package, CheckSquare, Square, ChevronRight,
   BarChart3 as BarChartIcon, Pencil, Check, X, Search,
   ArrowUpDown, TrendingUp, TrendingDown, ShoppingCart, DollarSign,
-  Layers, Trash2
+  Layers
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip as RechartsTooltip, Cell } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -479,7 +479,7 @@ export default function HistoryModal() {
                     <XAxis dataKey="name" tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fill: 'var(--text-tertiary)', fontSize: 10 }} axisLine={false} tickLine={false} width={45} tickFormatter={(v) => `${c}${v}`} />
                     <RechartsTooltip
-                      formatter={(value: any, name: any) => [`${c} ${Number(value).toFixed(2)}`, name === 'gasto' ? 'Gastado' : 'Presupuesto']}
+                      formatter={(value: unknown, name: unknown) => [`${c} ${Number(value).toFixed(2)}`, name === 'gasto' ? 'Gastado' : 'Presupuesto']}
                       contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '12px', color: 'var(--text-primary)' }}
                       itemStyle={{ color: 'var(--text-primary)' }}
                     />

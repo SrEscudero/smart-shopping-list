@@ -4,6 +4,8 @@
 import { useState } from 'react';
 import { useShoppingStore } from '../../store/useShoppingStore';
 import { getCategoryFromAI } from '../../actions/categorize';
+
+type Priority = 'alta' | 'media' | 'baja';
 import { v4 as uuidv4 } from 'uuid';
 import { Pencil, Plus } from 'lucide-react';
 import VoiceInput from './VoiceInput';
@@ -21,7 +23,7 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
   const [quantity, setQuantity] = useState('1');
   const [storeName, setStoreName] = useState('');
   const [note, setNote] = useState('');
-  const [priority, setPriority] = useState<'alta' | 'media' | 'baja'>('media');
+  const [priority, setPriority] = useState<Priority>('media');
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Extract unique names for datalist
@@ -162,7 +164,7 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
             <select
               id="product-priority"
               value={priority}
-              onChange={e => setPriority(e.target.value as any)}
+              onChange={e => setPriority(e.target.value as Priority)}
               className={`${smallInputCls} px-3 text-xs`}
               aria-label="Prioridad del producto"
             >
@@ -176,7 +178,7 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
 
       {/* Submit + Voice */}
       <div className="flex gap-2">
-        <VoiceInput onResult={handleVoiceResult} currency={c} />
+        <VoiceInput onResult={handleVoiceResult} />
         <button
           type="submit"
           disabled={!name.trim()}
@@ -192,4 +194,4 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
       </div>
     </form>
   );
-}
+}

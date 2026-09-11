@@ -1,12 +1,65 @@
 // app/api/scan/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 
+interface ScanProduct {
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+interface RawScanProduct {
+  name?: unknown;
+  price?: unknown;
+  quantity?: unknown;
+}
+
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+const MAX_PRODUCTS = 80;
+const GEMINI_TIMEOUT_MS = 12000;
+
+const parseProductsFromText = (text: string): RawScanProduct[] => {
+  const candidates = [
+    text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim(),
+    text.match(/\{[\s\S]*\}/)?.[0],
+  ].filter(Boolean) as string[];
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate) as { products?: RawScanProduct[] };
+      if (Array.isArray(parsed.products)) return parsed.products;
+    } catch {
+      // Try the next candidate.
+    }
+  }
+
+  return [];
+};
+
+const cleanProducts = (products: RawScanProduct[]): ScanProduct[] => products
+  .filter((product) => String(product.name ?? '').trim().length > 0)
+  .slice(0, MAX_PRODUCTS)
+  .map((product) => ({
+    name: String(product.name).trim(),
+    price: typeof product.price === 'number'
+      ? product.price
+      : Number.parseFloat(String(product.price || '0').replace(',', '.')) || 0,
+    quantity: Number.parseInt(String(product.quantity || '1'), 10) || 1,
+  }));
+
 export async function POST(req: NextRequest) {
   try {
     const { imageData } = await req.json();
 
-    if (!imageData) {
+    if (typeof imageData !== 'string' || !imageData) {
       return NextResponse.json({ error: 'No image data' }, { status: 400 });
+    }
+
+    if (!/^[A-Za-z0-9+/=]+$/.test(imageData)) {
+      return NextResponse.json({ error: 'Invalid image data' }, { status: 400 });
+    }
+
+    if ((imageData.length * 3) / 4 > MAX_IMAGE_BYTES) {
+      return NextResponse.json({ error: 'Image too large' }, { status: 413 });
     }
 
     if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
@@ -21,12 +74,15 @@ export async function POST(req: NextRequest) {
     }
 
     const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           contents: [
             {
@@ -61,6 +117,7 @@ Formato exacto:
         })
       }
     );
+    clearTimeout(timeout);
 
     if (!response.ok) {
       const err = await response.json();
@@ -71,34 +128,7 @@ Formato exacto:
     const data = await response.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-    // Parse JSON
-    let products = [];
-    try {
-      const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      const parsed = JSON.parse(cleaned);
-      products = parsed.products || [];
-    } catch {
-      const match = text.match(/\{[\s\S]*\}/);
-      if (match) {
-        try {
-          const parsed = JSON.parse(match[0]);
-          products = parsed.products || [];
-        } catch {
-          products = [];
-        }
-      }
-    }
-
-    // Limpiar y validar
-    const cleaned = products
-      .filter((p: { name?: string }) => p.name && String(p.name).trim().length > 0)
-      .map((p: { name: string; price?: number | string; quantity?: number }) => ({
-        name: String(p.name).trim(),
-        price: typeof p.price === 'number'
-          ? p.price
-          : parseFloat(String(p.price || '0').replace(',', '.')) || 0,
-        quantity: parseInt(String(p.quantity || '1')) || 1,
-      }));
+    const cleaned = cleanProducts(parseProductsFromText(text));
 
     return NextResponse.json({ products: cleaned });
 

@@ -7,6 +7,7 @@ import { useShoppingStore } from '../../store/useShoppingStore';
 import { Share2, Copy, Check, X, Link2, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFocusTrap, useEscapeKey } from '../../utils/focusTrap';
+import { encodeSharedProducts } from '../../utils/share';
 
 interface ShareModalProps {
   open: boolean;
@@ -48,14 +49,7 @@ export default function ShareModal({ open, onClose }: ShareModalProps) {
 
   // Generate URL with encoded list
   const generateShareURL = () => {
-    const data = pendingItems.map(i => ({
-      n: i.name,
-      p: i.estimatedPrice,
-      q: i.quantity,
-      c: i.category,
-      s: i.store,
-    }));
-    const encoded = btoa(encodeURIComponent(JSON.stringify(data)));
+    const encoded = encodeSharedProducts(pendingItems);
     return `${window.location.origin}/?import=${encoded}`;
   };
 

@@ -20,7 +20,7 @@ export const triggerHaptic = (type: 'light' | 'medium' | 'heavy' | 'success' | '
           navigator.vibrate([20, 40, 20, 40, 30]);
           break;
       }
-    } catch (e) {
+    } catch {
       // Ignore if not supported or blocked
     }
   }

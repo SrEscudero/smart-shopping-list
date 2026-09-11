@@ -1,7 +1,7 @@
 // utils/focusTrap.ts
 // Focus trap utility for modals — Accessibility improvement #3
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 
 const FOCUSABLE_SELECTORS = [
   'a[href]',
