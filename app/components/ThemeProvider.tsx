@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect } from 'react';
+import { budgetForecast } from '../../utils/planning';
 import { useShoppingStore } from '../../store/useShoppingStore';
 
 export default function ThemeProvider({ children }: { children: React.ReactNode }) {
@@ -77,13 +78,13 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
   // Budget alert system — notify when budget exceeds 80%
   useEffect(() => {
     if (totalBudget > 0 && !budgetAlertDismissed) {
-      const totalEstimated = items.reduce((a, i) => a + i.estimatedPrice * i.quantity, 0);
+      const totalEstimated = budgetForecast(items, totalBudget).projected;
       const pct = (totalEstimated / totalBudget) * 100;
       if (pct >= 80 && 'Notification' in window && Notification.permission === 'granted') {
-        new Notification('Presupuesto al ' + Math.round(pct) + '%', {
+        try { new Notification('Presupuesto al ' + Math.round(pct) + '%', {
           body: `Llevas ${currency} ${totalEstimated.toFixed(0)} de ${currency} ${totalBudget.toFixed(0)}`,
           icon: '/icons/icon-192x192.png',
-        });
+        }); useShoppingStore.getState().dismissBudgetAlert(); } catch { /* Inline budget remains available when notifications are unsupported. */ }
       }
     }
   }, [budgetAlertDismissed, currency, items, totalBudget]);

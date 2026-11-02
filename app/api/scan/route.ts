@@ -36,15 +36,15 @@ const parseProductsFromText = (text: string): RawScanProduct[] => {
 };
 
 const cleanProducts = (products: RawScanProduct[]): ScanProduct[] => products
-  .filter((product) => String(product.name ?? '').trim().length > 0)
+  .filter((product) => product && typeof product === 'object' && String(product.name ?? '').trim().length > 0)
   .slice(0, MAX_PRODUCTS)
   .map((product) => ({
     name: String(product.name).trim(),
     price: typeof product.price === 'number'
       ? product.price
       : Number.parseFloat(String(product.price || '0').replace(',', '.')) || 0,
-    quantity: Number.parseInt(String(product.quantity || '1'), 10) || 1,
-  }));
+    quantity: Number.parseFloat(String(product.quantity || '1').replace(',', '.')) || 1,
+  })).filter(p => Number.isFinite(p.price) && p.price >= 0 && Number.isFinite(p.quantity) && p.quantity > 0);
 
 export async function POST(req: NextRequest) {
   try {
@@ -62,15 +62,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Image too large' }, { status: 413 });
     }
 
-    if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-      // Demo data si no hay key
-      return NextResponse.json({
-        products: [
-          { name: 'Leche integral', price: 5.99, quantity: 2 },
-          { name: 'Pan de molde', price: 4.50, quantity: 1 },
-          { name: 'Arroz', price: 7.90, quantity: 1 },
-        ]
-      });
+    if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY || !process.env.GOOGLE_GENERATIVE_AI_MODEL) {
+      return NextResponse.json({ error: 'El escáner no está configurado. Puedes agregar los productos manualmente.' }, { status: 503 });
     }
 
     const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
@@ -78,7 +71,7 @@ export async function POST(req: NextRequest) {
     const timeout = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(process.env.GOOGLE_GENERATIVE_AI_MODEL)}:generateContent?key=${apiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -99,6 +92,8 @@ Puede ser un ticket de supermercado, una lista escrita a mano, etiquetas de gón
 
 REGLAS:
 - Extrae todos los nombres de productos que puedas leer
+- El campo price debe ser el PRECIO UNITARIO pagado, después de descuentos; nunca el total de la línea. Si solo aparece el total de una línea, divídelo por la cantidad.
+- No incluyas subtotales, impuestos, cambio ni totales como productos.
 - Si hay precios visibles, inclúyelos como número (ej: 5.99)
 - Si no hay precio, usa 0
 - Si hay cantidades, inclúyelas; si no, usa 1

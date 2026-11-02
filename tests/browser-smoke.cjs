@@ -1,0 +1,45 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const assert = require('node:assert/strict');
+const baseURL = process.env.SHOPPING_TEST_URL || 'http://127.0.0.1:3000';
+const seed = { items: [{ id:'rice',name:'Arroz',category:'Despensa',estimatedPrice:10,quantity:2,unit:'kg',store:'Mercado',isPurchased:false,isRecurring:true,addedAt:1 }], totalBudget:15, month:'Noviembre', theme:'light', currency:'R$', pantry:[], history:[], lists:[], activeListId:null, mainList:{items:[],totalBudget:0} };
+(async()=>{
+ const browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_PATH,args:['--no-sandbox']});
+ const ctx=await browser.newContext({viewport:{width:390,height:844}});
+ await ctx.addInitScript(seed=>{if(!localStorage.getItem('shopping-v3'))localStorage.setItem('shopping-v3',JSON.stringify({state:seed,version:0}));localStorage.setItem('onboarding_done','1');},seed);
+ const page=await ctx.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto(baseURL);await page.getByRole('heading',{name:'Tu mes, bien organizado.'}).waitFor();
+ await page.getByRole('button',{name:'Plan',exact:true}).click();await page.locator('summary').filter({hasText:'Lo que hay en casa'}).click();
+ await page.getByLabel('Producto en despensa',{exact:true}).fill('Arroz');await page.getByLabel('Existencias',{exact:true}).fill('1');await page.getByLabel('Unidad en despensa').selectOption('kg');await page.getByRole('button',{name:'Guardar existencias'}).click();
+ await page.getByRole('button',{name:'Calcular mi compra'}).click();assert.equal(await page.getByLabel('Cantidad planificada de Arroz').inputValue(),'1');
+ await page.getByRole('button',{name:'Crear lista del mes'}).click();await page.getByText(/La anterior se conserva/).waitFor();
+ await page.locator('summary').filter({hasText:'¿Qué presentación conviene?'}).click();await page.getByText(/Conviene la opción 2/).waitFor();
+ for(const width of [320,390,768,1440]) {await page.setViewportSize({width,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'plan overflow '+width);}
+ await page.setViewportSize({width:390,height:844});await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:'/tmp/shopping-plan.png',fullPage:true});
+ console.log('planning and comparison passed');await page.getByRole('button',{name:'Registrar un ticket'}).click();const dialog=page.getByRole('dialog',{name:'Revisa tu ticket'});
+ await dialog.getByLabel('Supermercado del ticket').fill('Mercado Azul');await dialog.getByLabel('Nombre del producto 1',{exact:true}).fill('Arroz');
+ await dialog.getByLabel('Precio unitario pagado (R$)').fill('8');await dialog.getByLabel('Cantidad comprada').fill('0.5');await dialog.getByLabel('Coincide con mi lista').selectOption({label:'Arroz · 1 kg'});
+ await dialog.getByLabel('Subtotal de productos del ticket (opcional)').fill('4');
+ await dialog.getByRole('button',{name:'Confirmar compra y actualizar despensa'}).click();await dialog.getByText(/Ticket guardado/).waitFor();await dialog.getByRole('button',{name:'Listo',exact:true}).click();
+ let state=await page.evaluate(()=>JSON.parse(localStorage.getItem('shopping-v3')).state);assert.equal(state.pantry[0].quantity,1.5);assert.equal(state.receipts[0].total,4);assert.equal(state.items.filter(i=>i.isPurchased).length,1);assert.equal(state.items.find(i=>!i.isPurchased).quantity,.5);
+ console.log('receipt passed');await page.locator('summary').filter({hasText:'Compra en familia'}).click();await page.getByRole('button',{name:'Compartir esta lista en vivo'}).click();await page.getByText('Esta lista está conectada.',{exact:true}).waitFor();
+ state=await page.evaluate(()=>JSON.parse(localStorage.getItem('shopping-v3')).state);assert(state.family?.token);
+ const ctx2=await browser.newContext({viewport:{width:390,height:844}});await ctx2.addInitScript(()=>localStorage.setItem('onboarding_done','1'));
+ const page2=await ctx2.newPage();page2.on('pageerror',e=>errors.push(e.message));await page2.goto(baseURL+'/#familia='+state.family.token);
+ await page2.getByRole('button',{name:'Unirme en una lista nueva'}).click();await page2.getByText('Esta lista está conectada.',{exact:true}).waitFor();
+ await page2.getByRole('button',{name:/^Lista \(/}).click();
+ await page2.getByRole('button',{name:'Marcar producto',exact:true}).first().click();
+ await page.waitForFunction(()=>JSON.parse(localStorage.getItem('shopping-v3')).state.items.every(i=>i.isPurchased),{},{timeout:20000});
+ await page.getByRole('button',{name:'Inicio',exact:true}).click();await page.getByRole('heading',{name:'Tu mes, bien organizado.'}).waitFor();
+ await page.getByRole('button',{name:'Agregar producto',exact:true}).click();await page.locator('#product-name').fill('Leche');await page.locator('#product-price').fill('6');await page.getByRole('button',{name:'Agregar producto',exact:true}).click();
+ await page2.waitForFunction(()=>JSON.parse(localStorage.getItem('shopping-v3')).state.items.some(i=>i.name==='Leche'),{},{timeout:20000});
+ await page2.reload();await page2.getByRole('button',{name:/^Lista \(/}).click();await page2.getByText('Leche',{exact:true}).first().waitFor();
+ await ctx.setOffline(true);await page.reload();await page.getByRole('heading',{name:'Tu mes, bien organizado.'}).waitFor();
+ await page.getByRole('button',{name:'Agregar producto',exact:true}).click();await page.locator('#product-name').fill('Pan sin conexión');await page.getByRole('button',{name:'Agregar producto',exact:true}).click();
+ await ctx.setOffline(false);
+ await page2.waitForFunction(()=>JSON.parse(localStorage.getItem('shopping-v3')).state.items.some(i=>i.name==='Pan sin conexión'),{},{timeout:20000});
+ const token = await page.evaluate(()=>JSON.parse(localStorage.getItem('shopping-v3')).state.family.token);
+ const closed = await ctx.request.delete(baseURL+'/api/family',{headers:{Authorization:'Bearer '+token}});assert.equal(closed.status(),200);
+ const missing = await ctx.request.get(baseURL+'/api/family',{headers:{Authorization:'Bearer '+token}});assert.equal(missing.status(),404);
+ console.log(JSON.stringify({plan:true,pantry:true,receipt:true,comparison:true,familyTwoBrowsers:true,offlineReload:true,pageErrors:errors}));
+ assert.deepEqual(errors,[]);await browser.close();
+})().catch(e=>{console.error(e);process.exit(1)});

@@ -1,11 +1,12 @@
 // app/components/Dashboard.tsx
 "use client";
 
-import React, { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useShoppingStore, CurrencySymbol, ListDensity, ThemeMode, CardStyle } from '../../store/useShoppingStore';
-import { ShoppingCart, Sun, Moon, Monitor, Palette, ChevronDown, Pencil, Check, X, DollarSign, LayoutList, Sparkles, Clock, Layers, Volume2, VolumeX } from 'lucide-react';
+import { ShoppingCart, Sun, Moon, Monitor, Palette, ChevronDown, Pencil, Check, X, DollarSign, LayoutList, Sparkles, Clock, Layers, Volume2, VolumeX, Plus, ArrowUpRight, SlidersHorizontal } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import BackupRestore from './BackupRestore';
+import BudgetWidget from './BudgetWidget';
 
 const ACCENT_OPTIONS = [
   { id: 'slate',      label: 'Pizarra',    hex: '#64748B' },
@@ -58,12 +59,12 @@ function getGreeting(): { text: string; period: string } {
   return { text: 'Buenas noches', period: 'night' };
 }
 
-export default function Dashboard() {
+export default function Dashboard({ onOpenList, onAddProduct }: { onOpenList: () => void; onAddProduct: () => void }) {
   const {
     items, totalBudget, month, theme, accentColor, shoppingMode, currency, listDensity, cardStyle, soundEnabled,
     setTheme, setAccentColor, toggleShoppingMode, setMonth, setCurrency, setListDensity, setCardStyle, toggleSound
   } = useShoppingStore();
-  const [mounted, setMounted] = useState(false);
+
   const [showAccentPicker, setShowAccentPicker] = useState(false);
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const [showDensityPicker, setShowDensityPicker] = useState(false);
@@ -72,7 +73,7 @@ export default function Dashboard() {
   const [monthValue, setMonthValue] = useState(month);
   const monthInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { const t = setTimeout(() => setMounted(true), 50); return () => clearTimeout(t); }, []);
+
   useEffect(() => { if (editingMonth && monthInputRef.current) { monthInputRef.current.focus(); monthInputRef.current.select(); } }, [editingMonth]);
 
   const startEditMonth = () => { setMonthValue(month); setEditingMonth(true); };
@@ -90,152 +91,48 @@ export default function Dashboard() {
     return { totalItems, purchased, pending, totalEstimated, remaining, progress, isOver, recurringCount };
   }, [items, totalBudget]);
 
-  const { totalItems, purchased, pending, totalEstimated, remaining, progress, isOver, recurringCount } = stats;
+  const { totalItems, purchased, pending, totalEstimated, progress, recurringCount } = stats;
   const c = currency || 'R$';
-
-  // Donut chart calculations
-  const radius = 46;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDash = (progress / 100) * circumference;
 
   return (
     <div className="space-y-5">
-      {/* ═══ HERO CARD — Animated Mesh Gradient ═══ */}
-      <div
-        className={`relative overflow-hidden p-6 transition-all duration-700 ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}
-        style={{
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border-strong)',
-          borderRadius: 'var(--radius-lg)',
-          boxShadow: 'var(--shadow-md)',
-        }}
-      >
-        {/* Animated gradient blobs */}
-        <div className="absolute -top-20 -right-20 w-60 h-60 pointer-events-none animate-morph animate-glow-pulse"
-          style={{ background: `radial-gradient(ellipse, rgba(var(--accent-rgb), 0.12) 0%, transparent 70%)` }} />
-        <div className="absolute -bottom-16 -left-16 w-48 h-48 pointer-events-none animate-morph animate-glow-pulse"
-          style={{ background: `radial-gradient(ellipse, rgba(var(--accent-rgb), 0.06) 0%, transparent 70%)`, animationDelay: '4s' }} />
-
-        <div className="relative z-10 flex items-start justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            {/* Greeting */}
-            <div className="flex items-center gap-1.5 mb-1 text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>
-              {(() => { const g = getGreeting(); return <><Clock size={12} /><span>{g.text}</span></>; })()}
-            </div>
-
-            {/* Month label */}
-            {editingMonth ? (
-              <div className="flex items-center gap-1.5 mb-2">
-                <input ref={monthInputRef} value={monthValue} onChange={e => setMonthValue(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') saveMonth(); if (e.key === 'Escape') setEditingMonth(false); }}
-                  className="text-[11px] font-bold uppercase tracking-[0.15em] bg-[var(--bg-elevated)] border border-[var(--accent)] px-3 py-1.5 focus:outline-none text-[var(--text-primary)] min-w-0 flex-1"
-                  style={{ borderRadius: 'var(--radius-sm)' }} />
-                <button onClick={saveMonth} className="p-1.5 text-emerald-400 hover:bg-emerald-400/10 rounded-lg" style={{ minHeight: 'unset' }}><Check size={14} /></button>
-                <button onClick={() => setEditingMonth(false)} className="p-1.5 text-red-400 hover:bg-red-400/10 rounded-lg" style={{ minHeight: 'unset' }}><X size={14} /></button>
-              </div>
-            ) : (
-              <button onClick={startEditMonth} className="flex items-center gap-2 mb-2 group" style={{ minHeight: 'unset' }}>
-                <span className="text-[11px] font-bold uppercase tracking-[0.15em]" style={{ color: 'var(--text-tertiary)' }}>{month}</span>
-                <Pencil size={10} className="opacity-0 group-hover:opacity-50 transition-opacity text-[var(--accent)]" />
-              </button>
-            )}
-
-            {/* Main number with counter animation */}
-            <h1 className="font-display font-900 leading-[0.9] tracking-tight" style={{ fontSize: 'clamp(2.2rem, 8vw, 3.2rem)' }}>
-              {totalBudget > 0 ? (
-                <motion.span
-                  key={remaining.toFixed(0)}
-                  initial={{ opacity: 0, y: 16, filter: 'blur(4px)' }}
-                  animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                  transition={{ duration: 0.6, ease: [0.32, 0.72, 0, 1] }}
-                  className={isOver ? 'text-red-400' : ''}
-                  style={isOver ? {} : { color: 'var(--accent)' }}
-                >
-                  {c}{Math.abs(remaining).toFixed(0)}
-                </motion.span>
-              ) : (
-                <span style={{ color: 'var(--accent)' }}>Mis Compras</span>
-              )}
-            </h1>
-            {totalBudget > 0 && (
-              <p className="text-[12px] mt-1.5 font-medium" style={{ color: 'var(--text-tertiary)' }}>
-                {isOver ? 'Excedido del presupuesto' : `disponible de ${c}${totalBudget.toFixed(0)}`}
-              </p>
-            )}
-
-            {/* Mini stats row with stagger animation */}
-            <div className="flex items-center gap-3 mt-5">
-              {[
-                { value: pending, label: 'pendientes', color: 'var(--text-primary)' },
-                { value: purchased, label: 'comprados', color: 'var(--success)' },
-                { value: `${c}${totalEstimated.toFixed(0)}`, label: 'estimado', color: 'var(--accent)' },
-              ].map((stat, i) => (
-                <React.Fragment key={stat.label}>
-                  {i > 0 && <div className="w-px h-8 flex-shrink-0" style={{ background: 'var(--border)' }} />}
-                  <div className="min-w-0">
-                    <motion.p
-                      key={String(stat.value)}
-                      initial={{ opacity: 0, y: 12, filter: 'blur(4px)' }}
-                      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-                      transition={{ duration: 0.5, delay: i * 0.1 }}
-                      className="text-xl font-bold font-display leading-none"
-                      style={{ color: stat.color }}
-                    >{stat.value}</motion.p>
-                    <p className="text-[10px] font-medium mt-1" style={{ color: 'var(--text-tertiary)' }}>{stat.label}</p>
-                  </div>
-                </React.Fragment>
-              ))}
-            </div>
-
-            {recurringCount > 0 && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full text-[11px] font-semibold"
-                style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
-                <Sparkles size={12} /> {recurringCount} recurrente{recurringCount > 1 ? 's' : ''}
-              </motion.div>
-            )}
-          </div>
-
-          {/* Progress ring with gradient stroke */}
-          <div className="relative flex-shrink-0 w-24 h-24">
-            <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-              <circle cx="50" cy="50" r={radius} fill="none" strokeWidth="7"
-                stroke="var(--border)" strokeOpacity="0.8" />
-              <motion.circle cx="50" cy="50" r={radius} fill="none" strokeWidth="7"
-                stroke="var(--accent)" strokeLinecap="round"
-                initial={{ strokeDasharray: `0 ${circumference}` }}
-                animate={{ strokeDasharray: `${strokeDash} ${circumference}` }}
-                transition={{ duration: 1.4, ease: [0.32, 0.72, 0, 1] }}
-                style={{ filter: `drop-shadow(0 0 8px rgba(var(--accent-rgb), 0.4))` }} />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <motion.span
-                key={Math.round(progress)}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="text-lg font-bold font-display leading-none"
-              >{Math.round(progress)}%</motion.span>
-              <span className="text-[9px] font-medium mt-0.5" style={{ color: 'var(--text-tertiary)' }}>listo</span>
-            </div>
-          </div>
+      <section className="monthly-hero" aria-label="Resumen del mes">
+        <div className="flex items-center justify-between gap-3">
+          <p className="hero-eyebrow"><Clock size={14} /> {getGreeting().text}</p>
+          <span className="hero-badge">PLAN MENSUAL</span>
         </div>
-
-        {/* Progress bar with glow */}
-        {totalItems > 0 && (
-          <div className="relative mt-5 h-[5px] overflow-hidden" style={{ borderRadius: 'var(--radius-full)', background: 'var(--bg-elevated)' }}>
-            <motion.div
-              className="absolute left-0 top-0 h-full"
-              initial={{ width: 0 }}
-              animate={{ width: `${progress}%` }}
-              transition={{ duration: 1.2, ease: [0.32, 0.72, 0, 1] }}
-              style={{ borderRadius: 'var(--radius-full)', background: `linear-gradient(90deg, var(--accent), rgba(var(--accent-rgb), 0.7))`, boxShadow: `0 0 12px rgba(var(--accent-rgb), 0.4)` }}
-            />
-          </div>
-        )}
-      </div>
-
+        <h2 className="hero-title">Tu mes, bien organizado.</h2>
+        <p className="hero-description">Lo que necesitas. Dentro de tu presupuesto.</p>
+        <div className="mt-5">
+          {editingMonth ? (
+            <div className="flex gap-2">
+              <input ref={monthInputRef} aria-label="Mes de la lista" value={monthValue}
+                onChange={e => setMonthValue(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') saveMonth(); if (e.key === 'Escape') setEditingMonth(false); }}
+                className="min-w-0 flex-1 rounded-xl px-3 bg-white/10 border border-white/30" />
+              <button onClick={saveMonth} aria-label="Guardar mes" className="p-2"><Check size={18} /></button>
+              <button onClick={() => setEditingMonth(false)} aria-label="Cancelar edición" className="p-2"><X size={18} /></button>
+            </div>
+          ) : (
+            <button onClick={startEditMonth} className="hero-month" aria-label="Editar mes de la lista">{month}<Pencil size={14} /></button>
+          )}
+        </div>
+        <div className="hero-metrics">
+          <div><strong>{pending}</strong><span>Por comprar</span></div>
+          <div><strong>{purchased}</strong><span>En el carrito</span></div>
+          <div><strong className="hero-money">{c} {totalEstimated.toFixed(2)}</strong><span>Total estimado</span></div>
+        </div>
+        <div className="hero-progress" role="progressbar" aria-label="Productos comprados" aria-valuenow={Math.round(progress)} aria-valuemin={0} aria-valuemax={100}>
+          <div style={{ width: `${progress}%` }} />
+        </div>
+        <div className="flex justify-between text-xs mt-2 gap-2 text-white/80"><span>{purchased} de {totalItems} productos listos</span><span>{Math.round(progress)}%</span></div>
+        {recurringCount > 0 && <p className="flex gap-2 items-center mt-3 text-xs text-white/80"><Sparkles size={14} />{recurringCount} productos se repetirán al cerrar el mes</p>}
+        <div className="hero-actions">
+          <button onClick={onAddProduct}><Plus size={18} /> Agregar producto</button>
+          <button onClick={onOpenList}>Ver mi lista <ArrowUpRight size={18} /></button>
+        </div>
+      </section>
+      <BudgetWidget full />
       {/* ═══ SHOPPING MODE — Dynamic Island Style ═══ */}
       {shoppingMode ? (
         <motion.div
@@ -256,7 +153,7 @@ export default function Dashboard() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold" style={{ color: 'var(--accent)' }}>Modo Compras Activo</p>
-            <p className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>Pantalla encendida · {pending} pendientes</p>
+            <p className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>Compra en curso · {pending} pendientes</p>
           </div>
           <button onClick={toggleShoppingMode}
             className="flex-shrink-0 text-xs font-bold px-4 py-2 transition-all"
@@ -268,7 +165,7 @@ export default function Dashboard() {
         <motion.button
           whileHover={{ scale: 1.01 }}
           whileTap={{ scale: 0.98 }}
-          onClick={toggleShoppingMode}
+          onClick={() => { toggleShoppingMode(); onOpenList(); }}
           className="w-full relative overflow-hidden flex items-center gap-4 px-5 py-4 transition-all card-glow"
           style={{
             background: 'var(--bg-card)',
@@ -283,7 +180,7 @@ export default function Dashboard() {
           </div>
           <div className="text-left flex-1 min-w-0">
             <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Iniciar Modo Compras</p>
-            <p className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>Pantalla siempre encendida</p>
+            <p className="text-xs font-medium" style={{ color: 'var(--text-tertiary)' }}>Una vista sencilla para comprar</p>
           </div>
           <div className="w-8 h-8 flex items-center justify-center flex-shrink-0" style={{ color: 'var(--text-tertiary)' }}>
             <svg width="8" height="14" fill="none" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -291,6 +188,8 @@ export default function Dashboard() {
         </motion.button>
       )}
 
+      <details className="settings-panel">
+        <summary><SlidersHorizontal size={18} /><span>Personaliza tu experiencia<small>Tema, moneda y copias de seguridad</small></span><ChevronDown size={18} /></summary>
       {/* ═══ SETTINGS — iOS Grouped List ═══ */}
       <div className="ios-list">
         {/* Theme selector — Segmented Control */}
@@ -446,6 +345,7 @@ export default function Dashboard() {
             <span className="text-[11px] text-[var(--text-tertiary)] block">Sonido al completar ítems</span>
           </div>
           <button
+            role="switch" aria-checked={soundEnabled} aria-label="Efectos de sonido"
             onClick={toggleSound}
             className={`w-12 h-7 rounded-full p-1 transition-colors relative flex items-center ${soundEnabled ? 'bg-[var(--accent)]' : 'bg-gray-500/30'}`}
             style={{ minHeight: 'unset' }}
@@ -461,6 +361,7 @@ export default function Dashboard() {
 
       {/* ═══ BACKUP/RESTORE ═══ */}
       <BackupRestore />
+      </details>
     </div>
   );
 }

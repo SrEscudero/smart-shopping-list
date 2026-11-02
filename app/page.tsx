@@ -10,7 +10,7 @@ import ThemeProvider from './components/ThemeProvider';
 import ProductCard from './components/ProductCard';
 import BudgetWidget from './components/BudgetWidget';
 import { DashboardSkeleton, StatsSkeleton } from './components/SkeletonLoaders';
-import { Home as HomeIcon, ClipboardList, BarChart3, CalendarDays, ShoppingCart, Camera, Download, Upload, AlertTriangle, CheckCircle2, Info, Search, X, Undo2, Share2, Bookmark, Command } from 'lucide-react';
+import { Home as HomeIcon, ClipboardList, BarChart3, CalendarDays, ShoppingCart, Camera, Download, Upload, AlertTriangle, CheckCircle2, Info, Search, X, Undo2, Share2, Bookmark, Command, CalendarPlus } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -18,6 +18,9 @@ import { CATEGORY_CONFIG } from '../utils/constants';
 import { csvToProducts, productsToCsv } from '../utils/csv';
 import { decodeSharedProducts } from '../utils/share';
 
+const PlanningHub = dynamic(() => import('./components/PlanningHub'));
+const FamilySync = dynamic(() => import('./components/FamilySync'));
+const ReceiptReview = dynamic(() => import('./components/ReceiptReview'));
 const Dashboard = dynamic(() => import('./components/Dashboard'), { loading: () => <DashboardSkeleton /> });
 const AddProductForm = dynamic(() => import('./components/AddProductForm'));
 const CategorySummary = dynamic(() => import('./components/CategorySummary'));
@@ -33,11 +36,11 @@ const ListSelector = dynamic(() => import('./components/ListSelector'));
 const QuickAdd = dynamic(() => import('./components/QuickAdd'));
 const SpeedDialFAB = dynamic(() => import('./components/SpeedDialFAB'));
 
-type AppTab = 'home' | 'list' | 'stats' | 'history';
+type AppTab = 'home' | 'list' | 'stats' | 'history' | 'plan';
 type SortMode = 'default' | 'price' | 'name' | 'category';
 
 const isAppTab = (value: string | null): value is AppTab =>
-  value === 'home' || value === 'list' || value === 'stats' || value === 'history';
+  value === 'home' || value === 'list' || value === 'stats' || value === 'history' || value === 'plan';
 
 const isSortMode = (value: string): value is SortMode =>
   value === 'default' || value === 'price' || value === 'name' || value === 'category';
@@ -62,7 +65,7 @@ export default function Home() {
   const {
     month, items, toggleProduct, removeProduct, updateProduct,
     clearPurchased, theme, shoppingMode, toggleShoppingMode,
-    addMultipleProducts, currency, undo
+    addMultipleProducts, currency, undo, family, activeListId
   } = useShoppingStore();
   const c = currency || 'R$';
 
@@ -71,6 +74,9 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<AppTab>('home');
   const [sortBy, setSortBy] = useState<SortMode>('default');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [familyStatus, setFamilyStatus] = useState('');
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [scanAsReceipt, setScanAsReceipt] = useState(false);
   const [showCamera, setShowCamera] = useState(false);
   const [search, setSearch] = useState('');
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info', undoAction?: () => void } | null>(null);
@@ -89,6 +95,8 @@ export default function Home() {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => setToast(null), 5000);
   }, []);
+
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); }, [activeTab]);
 
   // Hydration + onboarding + keyboard shortcuts
   useEffect(() => {
@@ -115,6 +123,7 @@ export default function Home() {
     const action = params.get('action');
     const encodedImport = params.get('import');
 
+    if (window.location.hash.includes('familia=')) setActiveTab('plan');
     if (isAppTab(requestedTab)) setActiveTab(requestedTab);
 
     if (encodedImport) {
@@ -197,8 +206,9 @@ export default function Home() {
     if (sortBy === 'price') result = [...result].sort((a, b) => b.estimatedPrice * b.quantity - a.estimatedPrice * a.quantity);
     if (sortBy === 'name') result = [...result].sort((a, b) => a.name.localeCompare(b.name));
     if (sortBy === 'category') result = [...result].sort((a, b) => a.category.localeCompare(b.category));
+    if (shoppingMode) result = [...result].sort((a, b) => Number(a.isPurchased) - Number(b.isPurchased) || a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
     return result;
-  }, [items, filter, selectedCategory, search, sortBy]);
+  }, [items, filter, selectedCategory, search, sortBy, shoppingMode]);
 
   const totalSum = useMemo(() => filtered.reduce((a, i) => a + i.estimatedPrice * i.quantity, 0), [filtered]);
   const pendingCount = useMemo(() => items.filter(i => !i.isPurchased).length, [items]);
@@ -223,6 +233,7 @@ export default function Home() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }, [items, month]);
 
   const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -249,7 +260,8 @@ export default function Home() {
   const tabs = [
     { id: 'home' as const, icon: <HomeIcon size={20} strokeWidth={2} />, label: 'Inicio' },
     { id: 'list' as const, icon: <ClipboardList size={20} strokeWidth={2} />, label: 'Lista' },
-    { id: 'stats' as const, icon: <BarChart3 size={20} strokeWidth={2} />, label: 'Stats' },
+    { id: 'plan' as const, icon: <CalendarPlus size={20} strokeWidth={2} />, label: 'Plan' },
+    { id: 'stats' as const, icon: <BarChart3 size={20} strokeWidth={2} />, label: 'Resumen' },
     { id: 'history' as const, icon: <CalendarDays size={20} strokeWidth={2} />, label: 'Historial' },
   ];
 
@@ -261,7 +273,7 @@ export default function Home() {
 
   return (
     <ThemeProvider>
-      <div className="min-h-screen transition-colors duration-300" style={{ background: 'var(--bg)', color: 'var(--text-primary)' }}>
+      <div className="shopping-app min-h-screen transition-colors duration-300" style={{ background: 'var(--bg)', color: 'var(--text-primary)' }}>
 
         {/* Skip to content — Accessibility #10 */}
         <a href="#main-content" className="skip-to-content">Saltar al contenido</a>
@@ -275,7 +287,8 @@ export default function Home() {
           )}
         </AnimatePresence>
 
-        {showCamera && <CameraScanner onClose={() => setShowCamera(false)} />}
+        {showCamera && <CameraScanner asReceipt={scanAsReceipt} onClose={() => { setShowCamera(false); setScanAsReceipt(false); }} />}
+        {showReceipt && <ReceiptReview onDone={() => setShowReceipt(false)} onScan={() => { setShowReceipt(false); setScanAsReceipt(true); setShowCamera(true); }} />}
 
         {/* CELEBRATION OVERLAY */}
         <AnimatePresence>
@@ -402,8 +415,8 @@ export default function Home() {
         >
           <div className="max-w-2xl mx-auto px-5 py-3.5 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <h1 className="text-lg font-display leading-none truncate" style={{ color: 'var(--text-primary)' }}>Compras</h1>
-              <span className="text-[11px] font-medium px-2.5 py-1 rounded-full capitalize" style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>{month}</span>
+              <h1 className="text-lg font-display leading-none truncate" style={{ color: 'var(--text-primary)' }}>Mi despensa<span className="brand-dot">.</span></h1>
+              <span className="hidden min-[380px]:inline-block max-w-[120px] truncate text-[11px] font-medium px-2.5 py-1 rounded-full capitalize" style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>{month}</span>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               {pendingCount > 0 && (
@@ -431,7 +444,7 @@ export default function Home() {
         </header>
 
         {/* ── TABS (inline, no sticky) — ARIA roles #9 ── */}
-        <nav aria-label="Secciones principales" style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+        <nav className="hidden sm:block" aria-label="Secciones principales" style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
           <div className="max-w-2xl mx-auto px-5">
             <div className="flex gap-0 overflow-x-auto scrollbar-hide" role="tablist" aria-label="Navegación principal">
               {tabs.map(tab => {
@@ -467,6 +480,9 @@ export default function Home() {
 
         {/* ── CONTENT ── */}
         <main id="main-content" className="max-w-2xl mx-auto px-4 pb-32 pt-4 space-y-4">
+          {hydrated && <div hidden={activeTab !== 'plan'} role="tabpanel" id="tabpanel-plan" aria-labelledby="tab-plan" className="space-y-4">
+            <PlanningHub onReceipt={() => setShowReceipt(true)} /><FamilySync onStatus={setFamilyStatus} />
+          </div>}
           <AnimatePresence mode="wait">
             {/* HOME TAB */}
             {activeTab === 'home' && (
@@ -474,8 +490,7 @@ export default function Home() {
                 role="tabpanel" id="tabpanel-home" aria-labelledby="tab-home">
                 {!hydrated ? <DashboardSkeleton /> : (
                   <>
-                    <div data-gsap-stagger><Dashboard /></div>
-                    <div data-gsap-stagger><BudgetWidget full /></div>
+                    <div data-gsap-stagger><Dashboard onOpenList={() => setActiveTab('list')} onAddProduct={() => { setActiveTab('list'); setShowAddForm(true); }} /></div>
                     <div data-gsap-stagger><CategorySummary /></div>
                   </>
                 )}
@@ -487,6 +502,8 @@ export default function Home() {
             <motion.div key="list" variants={tabVariants} initial="initial" animate="animate" exit="exit" className="space-y-3.5"
               role="tabpanel" id="tabpanel-list" aria-labelledby="tab-list">
 
+              {shoppingMode && <BudgetWidget full />}
+              {family && family.listId === activeListId && <div className="notice-success flex items-center justify-between gap-2"><span role="status">{familyStatus || 'Lista familiar conectada'}</span><button className="text-xs font-bold" onClick={() => setActiveTab('plan')}>Ver en Plan</button></div>}
               {/* Multi-list Selector */}
               <ListSelector />
 
@@ -511,7 +528,7 @@ export default function Home() {
                 <div className="flex items-center gap-2 px-3 py-2.5" style={{ borderBottom: '1px solid var(--border)' }}>
                   <Search size={18} className="text-[var(--text-tertiary)] flex-shrink-0" />
                   <input type="text" placeholder="Buscar producto, categoría o tienda..."
-                    className="flex-1 bg-transparent text-sm focus:outline-none placeholder-opacity-60"
+                    aria-label="Buscar productos" className="min-w-0 flex-1 bg-transparent text-sm focus:outline-none placeholder-opacity-60"
                     style={{ color: 'var(--text-primary)' }}
                     value={search} onChange={e => setSearch(e.target.value)} />
                   {search && (
@@ -534,7 +551,7 @@ export default function Home() {
                     </button>
                   ))}
                   <div className="w-px h-5 flex-shrink-0 mx-1 bg-[var(--border)]" />
-                  <select value={sortBy} onChange={e => {
+                  <select aria-label="Ordenar productos" value={sortBy} onChange={e => {
                     if (isSortMode(e.target.value)) setSortBy(e.target.value);
                   }}
                     className="flex-shrink-0 text-xs px-2.5 py-1.5 rounded-xl border-0 focus:outline-none font-semibold min-w-[110px]"
@@ -612,7 +629,7 @@ export default function Home() {
                   <div className="py-16 px-4 text-center flex flex-col items-center gap-4">
                     <ShoppingCart size={48} className="animate-float opacity-20 text-[var(--text-primary)]" strokeWidth={1.5} />
                     <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-                      {search ? 'No se encontraron resultados.' : 'Tu lista está vacía.'}
+                      {items.length > 0 ? 'No hay productos con estos filtros.' : 'Tu próxima compra empieza aquí.'}
                     </p>
                     {!search && items.length === 0 && (
                       <div className="flex flex-col gap-3 mt-2 w-full max-w-[200px]">
@@ -625,7 +642,7 @@ export default function Home() {
                 ) : (
                   <>
                     <div className="divide-y divide-gray-500/10">
-                      {sortBy === 'default' && !search ? (
+                      {sortBy === 'default' && !search && !shoppingMode ? (
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                           <SortableContext items={filtered.map(i => i.id)} strategy={verticalListSortingStrategy}>
                             {filtered.map((item, idx) => (
@@ -645,17 +662,18 @@ export default function Home() {
                             ))}
                           </SortableContext>
                         </DndContext>
-                      ) : sortBy === 'category' ? (
+                      ) : sortBy === 'category' || shoppingMode ? (
                         // ── GROUPED BY CATEGORY (#10) ──
                         (() => {
                           const groups = filtered.reduce((acc, item) => {
-                            if (!acc[item.category]) acc[item.category] = [];
-                            acc[item.category].push(item);
+                            const key = shoppingMode ? `${item.isPurchased ? 'Comprados' : 'Pendientes'} · ${item.category}` : item.category;
+                            if (!acc[key]) acc[key] = [];
+                            acc[key].push(item);
                             return acc;
                           }, {} as Record<string, typeof filtered>);
                           let globalIdx = 0;
                           return Object.entries(groups).map(([cat, groupItems]) => {
-                            const cfg = CATEGORY_CONFIG[cat] || CATEGORY_CONFIG['Otros'] || { color: '#8E8E93', icon: null, bg: 'rgba(142,142,147,0.12)' };
+                            const cfg = CATEGORY_CONFIG[groupItems[0].category] || CATEGORY_CONFIG['Otros'] || { color: '#8E8E93', icon: null, bg: 'rgba(142,142,147,0.12)' };
                             const groupTotal = groupItems.reduce((a, i) => a + i.estimatedPrice * i.quantity, 0);
                             return (
                               <div key={cat}>
@@ -757,7 +775,7 @@ export default function Home() {
         </AnimatePresence>
 
         {/* ── BOTTOM NAV ── */}
-        <nav className="fixed bottom-0 left-0 right-0 z-30"
+        <nav className="bottom-navigation fixed bottom-0 left-0 right-0 z-30"
           aria-label="Navegación inferior"
           style={{
             paddingBottom: 'env(safe-area-inset-bottom, 0px)',

@@ -27,7 +27,7 @@ export async function getCategoryFromAI(productName: string): Promise<Category> 
   if (categoryCache.has(key)) return categoryCache.get(key)!;
 
   // Intentar con Gemini si hay key
-  if (process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+  if (process.env.GOOGLE_GENERATIVE_AI_API_KEY && process.env.GOOGLE_GENERATIVE_AI_MODEL) {
     try {
       const apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
@@ -35,7 +35,7 @@ export async function getCategoryFromAI(productName: string): Promise<Category> 
       const timeout = setTimeout(() => controller.abort(), 5000);
 
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(process.env.GOOGLE_GENERATIVE_AI_MODEL)}:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -100,7 +100,7 @@ Responde SOLO con el nombre exacto de la categoría, sin puntos, sin explicacion
 // Exposed for client-side: check if AI is likely working
 export async function getCategorizationStatus(): Promise<{ aiAvailable: boolean; failures: number }> {
   return {
-    aiAvailable: !!process.env.GOOGLE_GENERATIVE_AI_API_KEY && consecutiveFailures < MAX_FAILURES_BEFORE_WARN,
+    aiAvailable: !!process.env.GOOGLE_GENERATIVE_AI_API_KEY && !!process.env.GOOGLE_GENERATIVE_AI_MODEL && consecutiveFailures < MAX_FAILURES_BEFORE_WARN,
     failures: consecutiveFailures,
   };
 }

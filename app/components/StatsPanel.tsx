@@ -22,12 +22,12 @@ export default function StatsPanel() {
 
   const stats = useMemo(() => {
     const total = items.reduce((a, i) => a + i.estimatedPrice * i.quantity, 0);
-    const spent = items.filter(i => i.isPurchased).reduce((a, i) => a + (i.finalPrice || i.estimatedPrice) * i.quantity, 0);
+    const spent = items.filter(i => i.isPurchased).reduce((a, i) => a + (i.finalPrice ?? i.estimatedPrice) * i.quantity, 0);
     const estimatedOfPurchased = items.filter(i => i.isPurchased).reduce((a, i) => a + i.estimatedPrice * i.quantity, 0);
     const purchased = items.filter(i => i.isPurchased).length;
     const rate = items.length > 0 ? (purchased / items.length) * 100 : 0;
     const priceDiff = spent - estimatedOfPurchased;
-    const accuracyRate = estimatedOfPurchased > 0 ? ((1 - Math.abs(priceDiff) / estimatedOfPurchased) * 100) : 0;
+    const accuracyRate = estimatedOfPurchased > 0 ? Math.max(0, (1 - Math.abs(priceDiff) / estimatedOfPurchased) * 100) : 0;
 
     const byCategory = items.reduce((acc, item) => {
       acc[item.category] = (acc[item.category] || 0) + item.estimatedPrice * item.quantity;

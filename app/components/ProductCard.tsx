@@ -9,6 +9,8 @@ import { CATEGORY_CONFIG, ALL_CATEGORIES } from '../../utils/constants';
 import { triggerHaptic } from '../../utils/haptic';
 import { Trash2, X, RefreshCw, Copy, Pencil } from 'lucide-react';
 import { useFocusTrap, useEscapeKey } from '../../utils/focusTrap';
+import UnitFields, { type UnitValue } from './UnitFields';
+import { unitPrice, priceChange } from '../../utils/planning';
 import { playCheckSound } from '../../utils/sound';
 
 function triggerConfetti(x: number, y: number) {
@@ -38,6 +40,9 @@ interface Props {
 }
 
 const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, onUpdate, onUndoRemove, isDark, shoppingMode = false, isLast = false }: Props) {
+    const priceHistory = useShoppingStore(s => s.priceHistory);
+    const [unitInfo, setUnitInfo] = useState<UnitValue>({ unit: item.unit || 'ud', packSize: item.packSize, packUnit: item.packUnit || 'g' });
+    const [optional, setOptional] = useState(!!item.isOptional);
     const currency = useShoppingStore(s => s.currency);
     const soundEnabled = useShoppingStore(s => s.soundEnabled);
     const toggleRecurring = useShoppingStore(s => s.toggleRecurring);
@@ -92,6 +97,7 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
                         note: item.note,
                         priority: item.priority,
                         isRecurring: item.isRecurring,
+            unit: item.unit, packSize: item.packSize, packUnit: item.packUnit, isOptional: item.isOptional,
                     });
                 });
             }, 300);
@@ -116,6 +122,7 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
             note: item.note,
             priority: item.priority,
             isRecurring: item.isRecurring,
+            unit: item.unit, packSize: item.packSize, packUnit: item.packUnit, isOptional: item.isOptional,
         });
         setShowEdit(false);
     }, [item, addProduct]);
@@ -126,8 +133,10 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
 
     const cfg = CATEGORY_CONFIG[item.category] || CATEGORY_CONFIG['Otros'];
     const editCfg = CATEGORY_CONFIG[editCategory] || CATEGORY_CONFIG['Otros'];
-    const total = item.estimatedPrice * item.quantity;
-    const liveTotal = ((parseFloat(editPrice) || 0) * (parseInt(editQty) || 1)).toFixed(2);
+    const total = (item.isPurchased ? item.finalPrice ?? item.estimatedPrice : item.estimatedPrice) * item.quantity;
+    const perUnit = unitPrice(item);
+    const change = priceChange(item, priceHistory, cur);
+    const liveTotal = ((parseFloat(editPrice) || 0) * (parseFloat(editQty) || 1)).toFixed(2);
 
     const handleToggle = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
@@ -152,7 +161,7 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
 
     const confirmFinalPrice = () => {
         const fp = parseFloat(finalPriceInput);
-        const finalPrice = !isNaN(fp) && fp > 0 ? fp : item.estimatedPrice;
+        const finalPrice = Number.isFinite(fp) && fp >= 0 ? fp : item.estimatedPrice;
         onToggle(item.id, finalPrice);
         setShowFinalPrice(false);
         setJustToggled(true);
@@ -167,6 +176,8 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
     };
 
     const openEdit = () => {
+        setUnitInfo({ unit: item.unit || 'ud', packSize: item.packSize, packUnit: item.packUnit || 'g' });
+        setOptional(!!item.isOptional);
         setEditName(item.name);
         setEditPrice(item.estimatedPrice.toString());
         setEditQty(item.quantity.toString());
@@ -178,14 +189,16 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
     };
 
     const handleSave = () => {
+        if (unitInfo.unit === 'paquete' && (!unitInfo.packSize || unitInfo.packSize <= 0)) return;
         onUpdate(item.id, {
             name: editName.trim() || item.name,
-            estimatedPrice: parseFloat(editPrice) || item.estimatedPrice,
-            quantity: parseInt(editQty) || 1,
+            estimatedPrice: Number.isFinite(Number(editPrice)) && Number(editPrice) >= 0 ? Number(editPrice) : item.estimatedPrice,
+            quantity: Math.max(0.001, parseFloat(editQty) || 1),
             store: editStore.trim() || 'Varias',
             category: editCategory,
             note: editNote.trim() || undefined,
             priority: editPriority,
+            ...unitInfo, isOptional: optional,
         });
         setShowEdit(false);
     };
@@ -208,7 +221,7 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
                     <div className="w-10 h-10 rounded-2xl border-2 flex items-center justify-center flex-shrink-0 transition-all duration-300"
                         style={{
                             background: item.isPurchased ? 'var(--accent)' : 'transparent',
-                            borderColor: item.isPurchased ? 'var(--accent)' : 'rgba(255,255,255,0.2)',
+                            borderColor: item.isPurchased ? 'var(--accent)' : 'var(--border-strong)',
                             boxShadow: item.isPurchased ? '0 0 12px var(--accent-glow)' : 'none',
                         }}>
                         {item.isPurchased && (
@@ -293,7 +306,7 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
                 <div className="absolute left-0 top-3 bottom-3 w-0.5 rounded-full" style={{ background: cfg.color }} />
                 <button onClick={handleToggle} className="w-11 h-11 flex items-center justify-center flex-shrink-0" style={{ minHeight: 'unset' }} aria-label="Marcar producto">
                     <div className="w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all duration-200"
-                        style={{ background: item.isPurchased ? 'var(--accent)' : 'transparent', borderColor: item.isPurchased ? 'var(--accent)' : 'rgba(255,255,255,0.2)' }}>
+                        style={{ background: item.isPurchased ? 'var(--accent)' : 'transparent', borderColor: item.isPurchased ? 'var(--accent)' : 'var(--border-strong)' }}>
                         {item.isPurchased && (<svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>)}
                     </div>
                 </button>
@@ -304,14 +317,17 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
                         <span className="text-xs font-medium" style={{ color: cfg.color }}>{item.category}</span>
                         {item.store && item.store !== 'Varias' && <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>· {item.store}</span>}
                         {item.note && <span className="text-xs italic" style={{ color: 'var(--text-tertiary)' }}>· {item.note}</span>}
+                        {item.isOptional && <span className="text-xs text-accent">Opcional</span>}
+                        {perUnit && item.unit === 'paquete' && <span className="text-xs muted">{cur} {perUnit.price.toFixed(2)} / {perUnit.unit}</span>}
+                        {change && change.percent > .1 && <span className="text-xs" style={{ color: 'var(--danger)' }}>+{change.percent.toFixed(1)}% vs. anterior</span>}
                         {item.priority === 'alta' && <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold text-red-400 bg-red-500/10">URGENTE</span>}
                         {item.isRecurring && <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold flex items-center gap-0.5" style={{ color: 'var(--accent)', background: 'var(--accent-soft)' }}><RefreshCw size={8} />REC</span>}
                     </div>
                 </div>
                 <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
                     <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{cur}{total.toFixed(2)}</span>
-                    <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>×{item.quantity}</span>
-                    {item.finalPrice && item.finalPrice !== item.estimatedPrice && (
+                    <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>×{item.quantity} {item.unit || 'ud'}</span>
+                    {item.finalPrice !== undefined && item.finalPrice !== item.estimatedPrice && (
                         <span className="text-[10px]" style={{ color: item.finalPrice > item.estimatedPrice ? '#FF453A' : '#30D158' }}>
                             Real: {cur}{(item.finalPrice * item.quantity).toFixed(2)}
                         </span>
@@ -345,8 +361,10 @@ const ProductCard = React.memo(function ProductCard({ item, onToggle, onRemove, 
                                     <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{cur}</span>
                                     <input type="number" step="0.01" min="0" inputMode="decimal" className={`w-full text-sm pl-8 pr-3 py-3 rounded-xl focus:outline-none ${isDark ? 'bg-white/5 text-white' : 'bg-black/5 text-gray-900'}`} value={editPrice} onChange={e => setEditPrice(e.target.value)} /></div>
                                 </div>
-                                <div className="space-y-1"><label className={lbl}>Cantidad</label><input type="number" min="1" inputMode="numeric" className={`${inputCls} text-center`} value={editQty} onChange={e => setEditQty(e.target.value)} /></div>
+                                <div className="space-y-1"><label className={lbl}>Cantidad</label><input type="number" min="0.001" step="any" inputMode="decimal" className={`${inputCls} text-center`} value={editQty} onChange={e => setEditQty(e.target.value)} /></div>
                             </div>
+                            <UnitFields value={unitInfo} onChange={setUnitInfo} />
+                            <label className="check-label"><input type="checkbox" checked={optional} onChange={e => setOptional(e.target.checked)} /> Compra opcional (se puede aplazar)</label>
                             {editPrice && editQty && (
                                 <div className="flex items-center justify-between px-3 py-2.5 rounded-xl" style={{ background: 'var(--accent-soft)' }}>
                                     <span className="text-sm" style={{ color: 'var(--accent)' }}>Total</span>

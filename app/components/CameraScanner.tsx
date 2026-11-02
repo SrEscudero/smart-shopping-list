@@ -2,7 +2,8 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import ReceiptReview from './ReceiptReview';
 import { useShoppingStore } from '../../store/useShoppingStore';
 import { getCategoryFromAI } from '../../actions/categorize';
 
@@ -15,9 +16,11 @@ interface ScannedProduct {
 
 interface CameraScannerProps {
   onClose: () => void;
+  asReceipt?: boolean;
 }
 
-export default function CameraScanner({ onClose }: CameraScannerProps) {
+export default function CameraScanner({ onClose, asReceipt = false }: CameraScannerProps) {
+  const [receiptId, setReceiptId] = useState('');
   const addProduct = useShoppingStore(s => s.addProduct);
   const theme = useShoppingStore(s => s.theme);
   const currency = useShoppingStore(s => s.currency);
@@ -30,6 +33,8 @@ export default function CameraScanner({ onClose }: CameraScannerProps) {
   const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+
+  useEffect(() => () => { stream?.getTracks().forEach(t => t.stop()); }, [stream]);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -110,6 +115,8 @@ export default function CameraScanner({ onClose }: CameraScannerProps) {
 
     try {
       const base64Data = capturedImage.split(',')[1];
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(base64Data));
+      setReceiptId(Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join(''));
 
       const response = await fetch('/api/scan', {
         method: 'POST',
@@ -117,7 +124,10 @@ export default function CameraScanner({ onClose }: CameraScannerProps) {
         body: JSON.stringify({ imageData: base64Data }),
       });
 
-      if (!response.ok) throw new Error('Error al analizar la imagen');
+      if (!response.ok) {
+        const failure = await response.json().catch(() => null);
+        throw new Error(failure?.error || 'Error al analizar la imagen');
+      }
 
       const data = await response.json();
 
@@ -136,8 +146,8 @@ export default function CameraScanner({ onClose }: CameraScannerProps) {
         setError('No se detectaron productos. Intenta con una imagen más clara.');
         setMode('preview');
       }
-    } catch {
-      setError('Error al procesar la imagen. Verifica tu conexión.');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Error al procesar la imagen. Verifica tu conexión.');
       setMode('preview');
     }
   };
@@ -172,6 +182,8 @@ export default function CameraScanner({ onClose }: CameraScannerProps) {
     setScannedProducts(prev => prev.map((p, i) => i === idx ? { ...p, [field]: value } : p));
   };
 
+  if (asReceipt && mode === 'results') return <ReceiptReview receiptId={receiptId} initialLines={scannedProducts.map(p => ({ name: p.name, price: p.price ?? 0, quantity: p.quantity, category: p.category || 'Otros', unit: 'ud' }))} onDone={onClose} />;
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col">
       {/* Backdrop */}
@@ -189,7 +201,7 @@ export default function CameraScanner({ onClose }: CameraScannerProps) {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3">
           <div>
-            <h2 className={`text-base font-bold ${text}`}>Escanear productos</h2>
+            <h2 className={`text-base font-bold ${text}`}>{asReceipt ? 'Leer ticket de compra' : 'Escanear productos'}</h2>
             <p className={`text-xs ${subtext}`}>
               {mode === 'idle' && 'Fotografía una lista o etiqueta'}
               {mode === 'camera' && 'Apunta la cámara al texto'}

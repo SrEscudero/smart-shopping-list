@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useShoppingStore } from '../../store/useShoppingStore';
 import { Sun, Moon, Wallet } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { budgetForecast } from '../../utils/planning';
 
 interface BudgetWidgetProps {
   compact?: boolean;
@@ -29,20 +30,20 @@ export default function BudgetWidget({ compact = false, full = false }: BudgetWi
     else setInputValue(totalBudget.toString());
   };
 
-  const totalEstimated = items.reduce((acc, i) => acc + i.estimatedPrice * i.quantity, 0);
-  const totalSpent = items.filter(i => i.isPurchased).reduce((acc, i) => acc + (i.finalPrice || i.estimatedPrice) * i.quantity, 0);
-  const remaining = totalBudget - totalEstimated;
-  const progress = totalBudget > 0 ? Math.min((totalEstimated / totalBudget) * 100, 100) : 0;
-  const isOver = remaining < 0;
+  const forecast = budgetForecast(items, totalBudget);
+  const totalSpent = forecast.spent;
+  const remaining = forecast.remaining;
+  const progress = totalBudget > 0 ? Math.min((forecast.projected / totalBudget) * 100, 100) : 0;
+  const isOver = totalBudget > 0 && remaining < 0;
 
   // COMPACT - just show remaining in header
   if (compact) {
     return (
       <div className="flex items-center gap-2">
         {totalBudget > 0 && (
-          <div className="flex flex-col items-end">
+          <div className="hidden sm:flex flex-col items-end">
             <span className={`text-xs font-medium ${isOver ? 'text-red-400' : 'text-green-400'}`}>
-              {isOver ? '−' : '+'}{c} {Math.abs(remaining).toFixed(0)}
+              {isOver ? '−' : '+'}{c} {Math.abs(remaining).toFixed(2)}
             </span>
           </div>
         )}
@@ -97,11 +98,11 @@ export default function BudgetWidget({ compact = false, full = false }: BudgetWi
               ref={inputRef}
               type="number"
               placeholder="0.00"
-              className="flex-1 text-2xl font-bold bg-transparent focus:outline-none"
+              className="min-w-0 flex-1 text-2xl font-bold bg-transparent focus:outline-none"
               style={{ color: 'var(--text-primary)' }}
               value={inputValue}
               onChange={e => setInputValue(e.target.value)}
-              onBlur={handleSave}
+              aria-label="Presupuesto mensual" min="0" step="0.01"
               onKeyDown={e => e.key === 'Enter' && handleSave()}
             />
             <button onClick={handleSave} className="text-white px-4 py-1.5 rounded-xl text-sm font-semibold"
@@ -110,30 +111,35 @@ export default function BudgetWidget({ compact = false, full = false }: BudgetWi
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 min-[380px]:grid-cols-3 gap-3">
             <div className="rounded-xl p-3" style={{ background: 'var(--bg-elevated)' }}>
               <p className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>Presupuesto</p>
-              <p className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>
-                {c} {totalBudget > 0 ? totalBudget.toFixed(0) : '—'}
+              <p className="text-base font-bold break-words" style={{ color: 'var(--text-primary)' }}>
+                {c} {totalBudget > 0 ? totalBudget.toFixed(2) : '—'}
               </p>
             </div>
             <div className="rounded-xl p-3" style={{ background: 'var(--bg-elevated)' }}>
-              <p className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>Estimado</p>
-              <p className="text-base font-bold" style={{ color: 'var(--accent)' }}>
-                {c} {totalEstimated.toFixed(0)}
+              <p className="text-xs mb-1" style={{ color: 'var(--text-tertiary)' }}>Previsto al terminar</p>
+              <p className="text-base font-bold break-words" style={{ color: 'var(--accent)' }}>
+                {c} {forecast.projected.toFixed(2)}
               </p>
             </div>
             <div className="rounded-xl p-3" style={{ background: isOver ? 'var(--danger-soft)' : 'var(--success-soft)' }}>
               <p className="text-xs mb-1" style={{ color: isOver ? 'var(--danger)' : 'var(--success)' }}>
                 {isOver ? 'Excedido' : 'Disponible'}
               </p>
-              <p className="text-base font-bold" style={{ color: isOver ? 'var(--danger)' : 'var(--success)' }}>
-                {totalBudget > 0 ? `${c} ${Math.abs(remaining).toFixed(0)}` : '—'}
+              <p className="text-base font-bold break-words" style={{ color: isOver ? 'var(--danger)' : 'var(--success)' }}>
+                {totalBudget > 0 ? `${c} ${Math.abs(remaining).toFixed(2)}` : '—'}
               </p>
             </div>
           </div>
         )}
 
+        <div className="forecast-split"><span>Ya pagado<strong>{c} {totalSpent.toFixed(2)}</strong></span><span>Falta comprar<strong>{c} {forecast.pending.toFixed(2)}</strong></span></div>
+        {forecast.unpriced > 0 && <p className="text-xs muted">{forecast.unpriced} productos pendientes tienen precio 0. Revisa sus precios para una previsión completa.</p>}
+        {isOver && <div className="notice-warning"><strong>Necesitas recortar {c} {forecast.excess.toFixed(2)}</strong>
+          {forecast.optional.length ? <><p className="text-xs mt-1">Puedes aplazar estos productos opcionales:</p>{forecast.optional.map(p => <div key={p.id} className="planning-row"><span>{p.name}</span><span>{c} {(p.estimatedPrice * p.quantity).toFixed(2)}</span></div>)}<p className="text-xs mt-1">Ajusta cantidades desde la lista. Los productos esenciales se conservan.</p></> : <p className="text-xs mt-1">Marca productos como opcionales al editarlos para ver qué puedes aplazar.</p>}
+        </div>}
         {/* Animated progress bar */}
         {totalBudget > 0 && !isEditing && (
           <div>

@@ -13,7 +13,7 @@ const slides = [
     glow: 'rgba(99,102,241,0.15)',
     title: 'Tu lista inteligente',
     desc: 'Organiza tus compras por categoría, tienda y prioridad. Arrastra para reordenar.',
-    features: ['IA categoriza automáticamente', 'Modo compras en tienda', 'Arrastrar para reordenar'],
+    features: ['Planificación con despensa', 'Modo compras en tienda', 'Precios por kilo o litro'],
   },
   {
     icon: <BarChart3 size={48} strokeWidth={1.5} />,
@@ -30,8 +30,8 @@ const slides = [
     bg: 'rgba(168,85,247,0.12)',
     glow: 'rgba(168,85,247,0.15)',
     title: 'Funciona sin internet',
-    desc: 'Instálala en tu celular como app. Tus datos se guardan localmente, siempre disponibles.',
-    features: ['PWA instalable', 'Datos 100% locales', 'Backup y restauración'],
+    desc: 'Después de abrirla con conexión, puedes usar tu lista sin internet. La compra familiar y la lectura con IA necesitan conexión.',
+    features: ['PWA instalable', 'Copia local de tus listas', 'Backup y restauración'],
   },
 ];
 

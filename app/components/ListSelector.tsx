@@ -7,7 +7,7 @@ import { Layers, Plus, Check, Trash2, Edit2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function ListSelector() {
-  const { lists, activeListId, createList, switchList, deleteList, renameList } = useShoppingStore();
+  const { lists, activeListId, createList, switchList, deleteList, renameList, items } = useShoppingStore();
   const [showModal, setShowModal] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -98,7 +98,7 @@ export default function ListSelector() {
                   placeholder="Nueva lista (ej. Farmacia, Ferretería)..."
                   value={newListName}
                   onChange={e => setNewListName(e.target.value)}
-                  className="flex-1 text-sm px-4 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+                  aria-label="Nombre de la nueva lista" className="min-w-0 flex-1 text-sm px-4 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                 />
                 <button
                   type="submit"
@@ -171,7 +171,7 @@ export default function ListSelector() {
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-bold truncate text-[var(--text-primary)]">{list.name}</p>
-                            <p className="text-[11px] text-[var(--text-tertiary)]">{list.items?.length || 0} items</p>
+                            <p className="text-[11px] text-[var(--text-tertiary)]">{isActive ? items.length : list.items.length} productos</p>
                           </div>
                         </div>
                       )}
@@ -188,7 +188,7 @@ export default function ListSelector() {
                           </button>
                         )}
                         <button
-                          onClick={() => deleteList(list.id)}
+                          onClick={() => { if (window.confirm(`¿Eliminar la lista «${list.name}» y sus productos?`)) deleteList(list.id); }}
                           className="p-2 text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
                           style={{ minHeight: 'unset' }}
                           title="Eliminar"

@@ -39,7 +39,7 @@ export default function ShareModal({ open, onClose }: ShareModalProps) {
     for (const [store, si] of Object.entries(grouped)) {
       msg += `*${store}*\n`;
       si.forEach(i => {
-        msg += `  • ${i.name} ×${i.quantity} — ${c} ${(i.estimatedPrice * i.quantity).toFixed(2)}\n`;
+        msg += `  • ${i.name} ×${i.quantity} ${i.unit || 'ud'} — ${c} ${(i.estimatedPrice * i.quantity).toFixed(2)}\n`;
       });
       msg += '\n';
     }
@@ -50,7 +50,7 @@ export default function ShareModal({ open, onClose }: ShareModalProps) {
   // Generate URL with encoded list
   const generateShareURL = () => {
     const encoded = encodeSharedProducts(pendingItems);
-    return `${window.location.origin}/?import=${encoded}`;
+    return `${window.location.origin}/?import=${encodeURIComponent(encoded)}`;
   };
 
   const copyToClipboard = async (text: string) => {
@@ -134,6 +134,7 @@ export default function ShareModal({ open, onClose }: ShareModalProps) {
               </button>
             </div>
 
+<p className="text-xs muted">Aquí compartes una copia. Para editar juntos, abre Plan → Compra en familia.</p>
             {/* Share options */}
             <div className="space-y-2">
               {/* WhatsApp */}

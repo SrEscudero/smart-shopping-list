@@ -9,6 +9,7 @@ type Priority = 'alta' | 'media' | 'baja';
 import { v4 as uuidv4 } from 'uuid';
 import { Pencil, Plus } from 'lucide-react';
 import VoiceInput from './VoiceInput';
+import UnitFields, { type UnitValue } from './UnitFields';
 
 interface AddProductFormProps {
   onAdd?: () => void;
@@ -18,6 +19,9 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
   const { addProduct, updateProduct, items, currency } = useShoppingStore();
   const c = currency || 'R$';
 
+  const [unitInfo, setUnitInfo] = useState<UnitValue>({ unit: 'ud', packUnit: 'g' });
+  const [isOptional, setIsOptional] = useState(false);
+  const [isRecurring, setIsRecurring] = useState(false);
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [quantity, setQuantity] = useState('1');
@@ -45,7 +49,8 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
       id: newId,
       name: productName,
       estimatedPrice: isNaN(parsedPrice) ? 0 : parsedPrice,
-      quantity: parseInt(quantity) || 1,
+      quantity: Number(quantity) || 1,
+      ...unitInfo, isOptional, isRecurring,
       category: 'Otros', // Default temporary
       store: storeName.trim() || 'Varias',
       note: note.trim() || undefined,
@@ -59,6 +64,7 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
     setStoreName('');
     setNote('');
     setPriority('media');
+    setUnitInfo({ unit: 'ud', packUnit: 'g' }); setIsOptional(false); setIsRecurring(false);
     setShowAdvanced(false);
     onAdd?.();
 
@@ -131,8 +137,8 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
         <label htmlFor="product-qty" className="sr-only">Cantidad</label>
         <input
           id="product-qty"
-          type="number" min="1" placeholder="×1"
-          inputMode="numeric"
+          type="number" min="0.001" step="any" placeholder="×1"
+          inputMode="decimal"
           className={`${smallInputCls} w-16 text-center px-2`}
           value={quantity}
           onChange={e => setQuantity(e.target.value)}
@@ -140,6 +146,8 @@ export default function AddProductForm({ onAdd }: AddProductFormProps) {
         />
       </div>
 
+      <UnitFields value={unitInfo} onChange={setUnitInfo} />
+      <div className="flex flex-wrap gap-4"><label className="check-label"><input type="checkbox" checked={isOptional} onChange={e => setIsOptional(e.target.checked)} /> Compra opcional</label><label className="check-label"><input type="checkbox" checked={isRecurring} onChange={e => setIsRecurring(e.target.checked)} /> Repetir cada mes</label></div>
       {/* Advanced Options */}
       {showAdvanced && (
         <div className="space-y-2 animate-slide-up">
